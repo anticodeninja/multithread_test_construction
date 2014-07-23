@@ -3,6 +3,8 @@
 #include <fstream>
 #include <limits>
 #include <map>
+#include <tuple>
+#include <algorithm>
 
 #include "workrow.h"
 
@@ -28,6 +30,7 @@ InputMatrix::InputMatrix(std::istream& input)
 
     _r2Matrix = new int[_rowsCount];
     calcR2Matrix();
+    sortMatrix();
 }
 
 InputMatrix::~InputMatrix() {
@@ -77,7 +80,7 @@ int InputMatrix::parseValue(std::istream &stream)
 
 void InputMatrix::calcR2Matrix()
 {
-    auto currentId = 1;
+    auto currentId = 0;
     std::map<WorkRow, int> mappings;
     for(auto i=0; i<_rowsCount; ++i) {
         WorkRow currentRow(_rMatrix, i, _rColsCount);
@@ -91,14 +94,69 @@ void InputMatrix::calcR2Matrix()
             currentId += 1;
         }
     }
+    _r2Count = currentId;
+}
 
-    currentId = 0;
+void InputMatrix::sortMatrix() {
+    std::vector<int> counts(_r2Count);
+    for(auto i=0; i<_rowsCount; ++i) {
+        counts[_r2Matrix[i]] += 1;
+    }
+
+    std::vector<std::tuple<int, int>> sortedCounts(_r2Count);
+    for(auto i=0; i<_r2Count; ++i) {
+        sortedCounts[i] = std::make_tuple(i, counts[i]);
+    }
+
+    std::sort(sortedCounts.begin(), sortedCounts.end(),
+              [](std::tuple<int, int> a, std::tuple<int, int> b){ return std::get<1>(a) > std::get<1>(b); });
+
+    std::vector<int> indexes(_r2Count);
+    int currentIndex = 0;
+    for(auto i=0; i<_r2Count; ++i) {
+        indexes[std::get<0>(sortedCounts[i])] = currentIndex;
+        currentIndex += std::get<1>(sortedCounts[i]);
+    }
+
+    std::vector<int> newIndexes(_rowsCount);
+    for(auto i=0; i<_rowsCount; ++i) {
+        newIndexes[i] = indexes[_r2Matrix[i]];
+        indexes[_r2Matrix[i]] += 1;
+    }
+
+    auto oldQMatrix = _qMatrix;
+    auto oldRMatrix = _rMatrix;
+    auto oldR2Matrix = _r2Matrix;
+
+    _qMatrix = new int[_rowsCount * _qColsCount];
+    _rMatrix = new int[_rowsCount * _rColsCount];
+    _r2Matrix = new int[_rowsCount];
+
+    for(auto i=0; i<_rowsCount; ++i) {
+        for(auto j=0; j<_qColsCount; ++j) {
+            _qMatrix[newIndexes[i*_qColsCount] + j] = oldQMatrix[i*_qColsCount + j];
+        }
+        for(auto j=0; j<_rColsCount; ++j) {
+            _rMatrix[newIndexes[i*_rColsCount] + j] = oldRMatrix[i*_rColsCount + j];
+        }
+        _r2Matrix[newIndexes[i]] = oldR2Matrix[i];
+    }
+
+    delete[] oldQMatrix;
+    delete[] oldRMatrix;
+    delete[] oldR2Matrix;
+}
+
+void InputMatrix::calcR2Indexes() {
+    auto currentId = 0;
+    auto newId = 0;
     for(auto i=0; i<_rowsCount; ++i) {
         if(_r2Matrix[i] != currentId) {
             _r2indexes.push_back(i);
-            std::cout << "|" << _r2indexes[currentId];
-            currentId += 1;
+            currentId = _r2Matrix[i];
+            newId += 1;
         }
+        _r2Matrix[i] = newId;
     }
 }
 

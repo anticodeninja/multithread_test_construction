@@ -43,6 +43,8 @@ private:
 
     int parseValue(std::istream& stream);
     void calcR2Matrix();
+    void sortMatrix();
+    void calcR2Indexes();
 
 private:
 
@@ -52,7 +54,9 @@ private:
 
     int* _qMatrix;
     int* _rMatrix;
+
     int* _r2Matrix;
+    int _r2Count;
 
     std::vector<int> _r2indexes;
 

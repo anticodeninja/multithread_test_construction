@@ -9,7 +9,7 @@ using namespace std;
 int main()
 {
     auto start = chrono::high_resolution_clock::now();
-    ifstream input_stream("input_data.txt");
+    ifstream input_stream("../input_data.txt");
     InputMatrix inputMatrix(input_stream);
     cout << chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now()-start).count() << "ns\n";
 
@@ -21,6 +21,7 @@ int main()
     inputMatrix.printImageMatrix(cout);
     cout << chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now()-start).count() << "ns\n";
 
+    return 0;
     IrredundantMatrix irredundantMatrix;
     inputMatrix.calculateCoverageMatrix(irredundantMatrix);
     cout << chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now()-start).count() << "ns\n";
