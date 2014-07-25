@@ -8,13 +8,15 @@ SOURCES += main.cpp \
     workrow.cpp \
     input_matrix.cpp \
     irreduntant_matrix.cpp \
-    row.cpp
+    row.cpp \
+    timecollector.cpp
 
 HEADERS += \
     workrow.h \
     irredundant_matrix.h \
     input_matrix.h \
-    row.h
+    row.h \
+    timecollector.h
 
 OTHER_FILES +=
 

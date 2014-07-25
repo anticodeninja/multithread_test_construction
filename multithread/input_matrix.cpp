@@ -7,30 +7,39 @@
 #include <algorithm>
 
 #include "workrow.h"
+#include "timecollector.h"
 
 InputMatrix::InputMatrix(std::istream& input)
 {
-    input >> _rowsCount;
+    {
+        TimeCollectorEntry reading(ReadingInput);
+        input >> _rowsCount;
 
-    input >> _qColsCount;
-    _qMatrix = new int[_rowsCount * _qColsCount];
-    for(auto i=0; i<_rowsCount; ++i) {
-        for(auto j=0; j<_qColsCount; ++j) {
-            setFeature(i, j, parseValue(input));
+        input >> _qColsCount;
+        _qMatrix = new int[_rowsCount * _qColsCount];
+        for(auto i=0; i<_rowsCount; ++i) {
+            for(auto j=0; j<_qColsCount; ++j) {
+                setFeature(i, j, parseValue(input));
+            }
         }
+
+        input >> _rColsCount;
+        _rMatrix = new int[_rowsCount * _rColsCount];
+        for(auto i=0; i<_rowsCount; ++i) {
+            for(auto j=0; j<_rColsCount; ++j) {
+                setImage(i, j, parseValue(input));
+            }
+        }
+
+        _r2Matrix = new int[_rowsCount];
     }
 
-    input >> _rColsCount;
-    _rMatrix = new int[_rowsCount * _rColsCount];
-    for(auto i=0; i<_rowsCount; ++i) {
-        for(auto j=0; j<_rColsCount; ++j) {
-            setImage(i, j, parseValue(input));
-        }
+    {
+        TimeCollectorEntry preparing(PreparingInput);
+        calcR2Matrix();
+        sortMatrix();
+        calcR2Indexes();
     }
-
-    _r2Matrix = new int[_rowsCount];
-    calcR2Matrix();
-    sortMatrix();
 }
 
 InputMatrix::~InputMatrix() {
@@ -40,6 +49,8 @@ InputMatrix::~InputMatrix() {
 }
 
 void InputMatrix::printFeatureMatrix(std::ostream& stream, bool printSize) {
+    TimeCollectorEntry writing(WritingOutput);
+
     if(printSize) {
         stream << _rowsCount << " " << _qColsCount << std::endl;
     }
@@ -55,6 +66,8 @@ void InputMatrix::printFeatureMatrix(std::ostream& stream, bool printSize) {
 }
 
 void InputMatrix::printImageMatrix(std::ostream& stream, bool printSize) {
+    TimeCollectorEntry writing(WritingOutput);
+
     if(printSize)
         stream << _rowsCount << " " << _rColsCount << std::endl;
 
@@ -134,10 +147,10 @@ void InputMatrix::sortMatrix() {
 
     for(auto i=0; i<_rowsCount; ++i) {
         for(auto j=0; j<_qColsCount; ++j) {
-            _qMatrix[newIndexes[i*_qColsCount] + j] = oldQMatrix[i*_qColsCount + j];
+            _qMatrix[newIndexes[i]*_qColsCount + j] = oldQMatrix[i*_qColsCount + j];
         }
         for(auto j=0; j<_rColsCount; ++j) {
-            _rMatrix[newIndexes[i*_rColsCount] + j] = oldRMatrix[i*_rColsCount + j];
+            _rMatrix[newIndexes[i]*_rColsCount + j] = oldRMatrix[i*_rColsCount + j];
         }
         _r2Matrix[newIndexes[i]] = oldR2Matrix[i];
     }
@@ -177,8 +190,9 @@ void InputMatrix::calculateCoverageMatrix(IrredundantMatrix &irredundantMatrix) 
 void InputMatrix::processBlock(IrredundantMatrix &irredundantMatrix, int offset1, int length1, int offset2, int length2) {
     for(auto i=0; i<length1; ++i) {
         for(auto j=0; j<length2; ++j) {
+            TimeCollectorEntry difference(QHandling);
             irredundantMatrix.addRow(Row::createAsDifference(
-                WorkRow(_qMatrix, offset1+i, _qColsCount), WorkRow(_qMatrix, offset2+j, _qColsCount)));
+                                         WorkRow(_qMatrix, offset1+i, _qColsCount), WorkRow(_qMatrix, offset2+j, _qColsCount)));
         }
     }
 }

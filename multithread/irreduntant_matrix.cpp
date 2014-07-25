@@ -2,10 +2,14 @@
 
 #include <limits>
 
+#include "timecollector.h"
+
 IrredundantMatrix::IrredundantMatrix() {
 }
 
 void IrredundantMatrix::addRow(const Row &row) {
+    TimeCollectorEntry merging(RMerging);
+
     auto i = _rows.begin();
     while(i != _rows.end()) {
         if(i->isInclude(row)) {
@@ -23,6 +27,8 @@ void IrredundantMatrix::addRow(const Row &row) {
 
 void IrredundantMatrix::printMatrix(std::ostream &stream, bool printSize)
 {
+    TimeCollectorEntry writing(WritingOutput);
+
     if(printSize)
         stream << _rows.size() << " " << (_rows.size() > 0 ? _rows[0].getWidth() : 0) << std::endl;
 
