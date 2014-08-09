@@ -8,6 +8,7 @@
 
 #include "workrow.h"
 #include "timecollector.h"
+#include "optimal_plan.h"
 
 InputMatrix::InputMatrix(std::istream& input)
 {
@@ -39,6 +40,7 @@ InputMatrix::InputMatrix(std::istream& input)
         calcR2Matrix();
         sortMatrix();
         calcR2Indexes();
+        _optimalPlan = new OptimalPlan(_r2Counts.data(), _r2Counts.size());
     }
 }
 
@@ -46,6 +48,7 @@ InputMatrix::~InputMatrix() {
     delete[] _rMatrix;
     delete[] _r2Matrix;
     delete[] _qMatrix;
+    delete _optimalPlan;
 }
 
 void InputMatrix::printFeatureMatrix(std::ostream& stream, bool printSize) {
@@ -82,6 +85,27 @@ void InputMatrix::printImageMatrix(std::ostream& stream, bool printSize) {
     }
 }
 
+void InputMatrix::printDebugInfo(std::ostream& stream) {
+    stream << "R2 Indexes" << std::endl;
+    for(size_t i=0; i<_r2Counts.size(); ++i) {
+        stream << _r2Indexes[i] << " - " << _r2Counts[i] << std::endl;
+    }
+}
+
+void InputMatrix::calcOptimalPlan()
+{
+    calcOptimalPlan(0, _r2Count - 1);
+}
+
+void InputMatrix::calcOptimalPlan(int begin, int end)
+{
+    auto median = _optimalPlan->FindNextStep(begin, end);
+    if(median - begin > 1)
+        calcOptimalPlan(begin, median);
+    if(end - median -1 > 1)
+        calcOptimalPlan(median + 1, end);
+}
+
 int InputMatrix::parseValue(std::istream &stream)
 {
     std::string buffer;
@@ -108,6 +132,26 @@ void InputMatrix::calcR2Matrix()
         }
     }
     _r2Count = currentId;
+}
+
+void InputMatrix::calcR2Indexes() {
+    auto currentId = 0;
+    auto newId = 0;
+    auto startIndex = 0;
+
+    _r2Indexes.push_back(0);
+    for(auto i=0; i<_rowsCount; ++i) {
+        if(_r2Matrix[i] != currentId) {
+            _r2Indexes.push_back(i);
+            _r2Counts.push_back(i - startIndex);
+
+            currentId = _r2Matrix[i];
+            startIndex = i;
+            newId += 1;
+        }
+        _r2Matrix[i] = newId;
+    }
+    _r2Counts.push_back(_rowsCount - startIndex);
 }
 
 void InputMatrix::sortMatrix() {
@@ -160,39 +204,22 @@ void InputMatrix::sortMatrix() {
     delete[] oldR2Matrix;
 }
 
-void InputMatrix::calcR2Indexes() {
-    auto currentId = 0;
-    auto newId = 0;
-    for(auto i=0; i<_rowsCount; ++i) {
-        if(_r2Matrix[i] != currentId) {
-            _r2indexes.push_back(i);
-            currentId = _r2Matrix[i];
-            newId += 1;
-        }
-        _r2Matrix[i] = newId;
-    }
-}
-
 void InputMatrix::calculateCoverageMatrix(IrredundantMatrix &irredundantMatrix) {
-    auto calcLength = [this](size_t x) {
-        return (x + 1 < _r2indexes.size())
-                ? _r2indexes[x+1] - _r2indexes[x]
-                : _rowsCount - _r2indexes[x];
-    };
-
-    for(size_t i=0; i<_r2indexes.size()-1; ++i) {
-        for(size_t j=i+1; j<_r2indexes.size(); ++j) {
-            processBlock(irredundantMatrix, _r2indexes[i], calcLength(i), _r2indexes[j], calcLength(j));
+    for(size_t i=0; i<_r2Indexes.size()-1; ++i) {
+        for(size_t j=i+1; j<_r2Indexes.size(); ++j) {
+            processBlock(irredundantMatrix, _r2Indexes[i], _r2Counts[i], _r2Indexes[j], _r2Counts[j]);
         }
     }
 }
 
-void InputMatrix::processBlock(IrredundantMatrix &irredundantMatrix, int offset1, int length1, int offset2, int length2) {
+void InputMatrix::processBlock(IrredundantMatrix &irredundantMatrix,
+                               int offset1, int length1, int offset2, int length2) {
     for(auto i=0; i<length1; ++i) {
         for(auto j=0; j<length2; ++j) {
             TimeCollectorEntry difference(QHandling);
             irredundantMatrix.addRow(Row::createAsDifference(
-                                         WorkRow(_qMatrix, offset1+i, _qColsCount), WorkRow(_qMatrix, offset2+j, _qColsCount)));
+                                         WorkRow(_qMatrix, offset1+i, _qColsCount),
+                                         WorkRow(_qMatrix, offset2+j, _qColsCount)));
         }
     }
 }

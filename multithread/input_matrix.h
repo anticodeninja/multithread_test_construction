@@ -6,6 +6,8 @@
 
 #include "irredundant_matrix.h"
 
+class OptimalPlan;
+
 class InputMatrix
 {
 
@@ -17,6 +19,9 @@ public:
     void printImageMatrix(std::ostream& stream, bool printSize = false);
     void calculateCoverageMatrix(IrredundantMatrix& irredundantMatrix);
     void processBlock(IrredundantMatrix &irredundantMatrix, int offset1, int length1, int offset2, int length2);
+    void printDebugInfo(std::ostream &stream);
+    void calcOptimalPlan();
+    void calcOptimalPlan(int begin, int end);
 
 public:
     inline void setFeature(int i, int j, int value)
@@ -33,7 +38,6 @@ public:
     {
         _rMatrix[i*_rColsCount + j] = value;
     }
-
     inline int getImage(int i, int j) const
     {
         return _rMatrix[i*_rColsCount + j];
@@ -58,8 +62,9 @@ private:
     int* _r2Matrix;
     int _r2Count;
 
-    std::vector<int> _r2indexes;
-
+    std::vector<int> _r2Indexes;
+    std::vector<int> _r2Counts;
+    OptimalPlan* _optimalPlan;
 };
 
-#endif // INPUTMATRIX_H
+#endif // INPUTMATRIX_H>

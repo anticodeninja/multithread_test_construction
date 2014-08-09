@@ -7,9 +7,7 @@
 
 using namespace std;
 
-int main()
-{
-    TimeCollector::Initialize(TimeCollectorCount);
+void normal() {
     TimeCollectorEntry all(All, true);
 
     ifstream input_stream("../input_data.txt");
@@ -20,6 +18,8 @@ int main()
 
     cout << "Image Matrix:" << endl;
     inputMatrix.printImageMatrix(cout);
+
+    inputMatrix.printDebugInfo(cout);
 
     IrredundantMatrix irredundantMatrix;
     inputMatrix.calculateCoverageMatrix(irredundantMatrix);
@@ -35,7 +35,19 @@ int main()
     cout << "QHandling: " << chrono::duration_cast<chrono::nanoseconds>(TimeCollector::GetTimeValue(QHandling)).count() << "ns\n";
     cout << "RMerging: " << chrono::duration_cast<chrono::nanoseconds>(TimeCollector::GetTimeValue(RMerging)).count() << "ns\n";
     cout << "WritingOutput: " << chrono::duration_cast<chrono::nanoseconds>(TimeCollector::GetTimeValue(WritingOutput)).count() << "ns\n";
+}
 
+void optimalPlanTest() {
+    TimeCollector::Initialize(TimeCollectorCount);
+    ifstream input_stream("../input_data.txt");
+    InputMatrix inputMatrix(input_stream);
+    inputMatrix.calcOptimalPlan();
+}
+
+int main()
+{
+    cout << "Program start" << endl;
+    optimalPlanTest();
     return 0;
 }
 
