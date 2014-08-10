@@ -3,6 +3,8 @@
 #include <iostream>
 #include <limits>
 
+#include "global_settings.h"
+
 OptimalPlan::OptimalPlan(int* counts, int len)
     : _counts(counts),
       _indexes(len),
@@ -10,12 +12,6 @@ OptimalPlan::OptimalPlan(int* counts, int len)
       _calcIndexes(len),
       _optimalPlan(len)
 {
-    _counts = counts;
-    _indexes.resize(len);
-    _lastIndexes.resize(len);
-    _calcIndexes.resize(len);
-    _optimalPlan.resize(len);
-
     for(auto i=0; i<len; ++i) {
         _indexes[i] = i;
     }
@@ -81,6 +77,7 @@ int OptimalPlan::FindNextStep(int begin, int end)
     }
 
     // Print
+#ifdef DEBUG_MODE
     std::cout << "Optimal plan: " << std::endl;
     std::cout << begin << " " << median << " " << end << " | ";
     for(auto i=0; i<_indexes.size(); ++i)
@@ -89,6 +86,7 @@ int OptimalPlan::FindNextStep(int begin, int end)
     for(auto i=0; i<_indexes.size(); ++i)
         std::cout << _counts[_indexes[i]] << " ";
     std::cout << "| " << bestComplexity << std::endl;
+#endif
 
     return median;
 }

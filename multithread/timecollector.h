@@ -5,18 +5,6 @@
 #include <mutex>
 #include <chrono>
 
-enum TimeCollectorCategory
-{
-    All,
-    ReadingInput,
-    PreparingInput,
-    PlanBuilding,
-    QHandling,
-    RMerging,
-    WritingOutput,
-    TimeCollectorCount
-};
-
 class TimeCollectorEntry
 {
 

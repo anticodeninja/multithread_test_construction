@@ -2,17 +2,27 @@
 #include <fstream>
 #include <chrono>
 
+#include "global_settings.h"
 #include "timecollector.h"
 #include "input_matrix.h"
 
 using namespace std;
 
-void normal() {
+int main(int argc, char** argv)
+{
+    #ifdef TIME_PROFILE
+    TimeCollector::Initialize(TimeCollectorCount);
     TimeCollectorEntry all(All, true);
+    #endif
+
+    #ifdef DEBUG_MODE
+    cout << "Program start" << endl;
+    #endif
 
     ifstream input_stream("../input_data.txt");
     InputMatrix inputMatrix(input_stream);
 
+    #ifdef DEBUG_MODE
     cout << "Feature Matrix:" << endl;
     inputMatrix.printFeatureMatrix(cout);
 
@@ -20,13 +30,16 @@ void normal() {
     inputMatrix.printImageMatrix(cout);
 
     inputMatrix.printDebugInfo(cout);
+    #endif
 
     IrredundantMatrix irredundantMatrix;
-    inputMatrix.calculateCoverageMatrix(irredundantMatrix);
+//    inputMatrix.calculateSingleThread(irredundantMatrix);
+    inputMatrix.calculateMultiThreadWithOptimalPlanBuilding(irredundantMatrix, false);
 
     cout << "Coverage Matrix:" << endl;
-    irredundantMatrix.printMatrix(cout);
+    irredundantMatrix.printMatrix(cout, true);
 
+    #ifdef TIME_PROFILE
     all.Stop();
     cout << "All: " << chrono::duration_cast<chrono::nanoseconds>(TimeCollector::GetTimeValue(All)).count() << "ns\n";
     cout << "ReadingInput: " << chrono::duration_cast<chrono::nanoseconds>(TimeCollector::GetTimeValue(ReadingInput)).count() << "ns\n";
@@ -34,20 +47,11 @@ void normal() {
     cout << "PlanBuilding: " << chrono::duration_cast<chrono::nanoseconds>(TimeCollector::GetTimeValue(PlanBuilding)).count() << "ns\n";
     cout << "QHandling: " << chrono::duration_cast<chrono::nanoseconds>(TimeCollector::GetTimeValue(QHandling)).count() << "ns\n";
     cout << "RMerging: " << chrono::duration_cast<chrono::nanoseconds>(TimeCollector::GetTimeValue(RMerging)).count() << "ns\n";
+    cout << "Threading: " << chrono::duration_cast<chrono::nanoseconds>(TimeCollector::GetTimeValue(Threading)).count() << "ns\n";
+    cout << "CrossThreading: " << chrono::duration_cast<chrono::nanoseconds>(TimeCollector::GetTimeValue(CrossThreading)).count() << "ns\n";
     cout << "WritingOutput: " << chrono::duration_cast<chrono::nanoseconds>(TimeCollector::GetTimeValue(WritingOutput)).count() << "ns\n";
-}
+    #endif
 
-void optimalPlanTest() {
-    TimeCollector::Initialize(TimeCollectorCount);
-    ifstream input_stream("../input_data.txt");
-    InputMatrix inputMatrix(input_stream);
-    inputMatrix.calcOptimalPlan();
-}
-
-int main()
-{
-    cout << "Program start" << endl;
-    optimalPlanTest();
     return 0;
 }
 

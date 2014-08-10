@@ -5,10 +5,12 @@
 #include <map>
 #include <tuple>
 #include <algorithm>
+#include <thread>
 
+#include "global_settings.h"
 #include "workrow.h"
 #include "timecollector.h"
-#include "optimal_plan.h"
+#include "fast_plan.h"
 
 InputMatrix::InputMatrix(std::istream& input)
 {
@@ -40,7 +42,7 @@ InputMatrix::InputMatrix(std::istream& input)
         calcR2Matrix();
         sortMatrix();
         calcR2Indexes();
-        _optimalPlan = new OptimalPlan(_r2Counts.data(), _r2Counts.size());
+        _planBuilder = new FastPlan(_r2Counts.data(), _r2Counts.size());
     }
 }
 
@@ -48,7 +50,7 @@ InputMatrix::~InputMatrix() {
     delete[] _rMatrix;
     delete[] _r2Matrix;
     delete[] _qMatrix;
-    delete _optimalPlan;
+    delete _planBuilder;
 }
 
 void InputMatrix::printFeatureMatrix(std::ostream& stream, bool printSize) {
@@ -90,20 +92,6 @@ void InputMatrix::printDebugInfo(std::ostream& stream) {
     for(size_t i=0; i<_r2Counts.size(); ++i) {
         stream << _r2Indexes[i] << " - " << _r2Counts[i] << std::endl;
     }
-}
-
-void InputMatrix::calcOptimalPlan()
-{
-    calcOptimalPlan(0, _r2Count - 1);
-}
-
-void InputMatrix::calcOptimalPlan(int begin, int end)
-{
-    auto median = _optimalPlan->FindNextStep(begin, end);
-    if(median - begin > 1)
-        calcOptimalPlan(begin, median);
-    if(end - median -1 > 1)
-        calcOptimalPlan(median + 1, end);
 }
 
 int InputMatrix::parseValue(std::istream &stream)
@@ -204,22 +192,95 @@ void InputMatrix::sortMatrix() {
     delete[] oldR2Matrix;
 }
 
-void InputMatrix::calculateCoverageMatrix(IrredundantMatrix &irredundantMatrix) {
+void InputMatrix::calculateSingleThread(IrredundantMatrix &irredundantMatrix) {
     for(size_t i=0; i<_r2Indexes.size()-1; ++i) {
         for(size_t j=i+1; j<_r2Indexes.size(); ++j) {
-            processBlock(irredundantMatrix, _r2Indexes[i], _r2Counts[i], _r2Indexes[j], _r2Counts[j]);
+            processBlock(irredundantMatrix, _r2Indexes[i], _r2Counts[i], _r2Indexes[j], _r2Counts[j], false);
         }
     }
 }
 
+void InputMatrix::calculateMultiThreadWithOptimalPlanBuilding(IrredundantMatrix &irredundantMatrix,
+                                                              bool differentThreadIrreduntant)
+{
+    auto threadRang = 1;
+    auto indexesCount = 0;
+    for(; _r2Count / 2 > 1 << (threadRang - 1); ++threadRang);
+    for(auto i=0; i<=threadRang; ++i) indexesCount += 1 << i;
+    auto maxThreads = 1 << threadRang;
+
+    DEBUG_INFO("ThreadRang: " << threadRang);
+    DEBUG_INFO("IndexesCount: " << indexesCount);
+    DEBUG_INFO("MaxThreads: " << maxThreads);
+
+    std::vector<int> indexes(3 * indexesCount);
+    std::vector<IrredundantMatrix> threadIrredunantMatrix(maxThreads);
+    std::vector<std::thread> threads(maxThreads);
+
+    auto setBegin = [&indexes](int id, int value) {indexes[3*id + 0] = value;};
+    auto getBegin = [&indexes](int id) {return indexes[3*id + 0];};
+    auto setMedian = [&indexes](int id, int value) {indexes[3*id + 1] = value;};
+    auto getMedian = [&indexes](int id) {return indexes[3*id + 1];};
+    auto setEnd = [&indexes](int id, int value) {indexes[3*id + 2] = value;};
+    auto getEnd = [&indexes](int id) {return indexes[3*id + 2];};
+
+    setBegin(0, 0);
+    setEnd(0, _r2Count - 1);
+
+    auto stepBaseIndex = 0;
+    for(auto rang=0; rang<=threadRang; ++rang) {
+        auto threadForStep = 1 << rang;
+        DEBUG_INFO("Step: " << (rang+1) << ", ThreadForStep: " << threadForStep);
+
+        for(auto j=0; j<threadForStep; ++j) {
+            auto id = stepBaseIndex + j;
+            COLLECT_TIME(Threading);
+            threads[j] = std::thread([rang, id, threadRang, this, &irredundantMatrix, &indexes,
+                                     &setBegin, &setMedian, &setEnd,
+                                     &getBegin, &getMedian, &getEnd](){
+                DEBUG_INFO("Work on step: " << id <<
+                           ", begin: " << getBegin(id) << ", end: " << getEnd(id));
+
+                if(getBegin(id) != getEnd(id)) {
+                    {
+                        COLLECT_TIME(PlanBuilding);
+                        setMedian(id, _planBuilder->FindNextStep(getBegin(id), getEnd(id)));
+                    }
+
+                    for(auto i=getBegin(id); i<=getMedian(id); ++i) {
+                        for(auto j=getMedian(id)+1; j<=getEnd(id); ++j) {
+                            processBlock(irredundantMatrix,
+                                         _r2Indexes[_planBuilder->GetIndex(i)], _r2Counts[_planBuilder->GetIndex(i)],
+                                         _r2Indexes[_planBuilder->GetIndex(j)], _r2Counts[_planBuilder->GetIndex(j)],
+                                    true);
+                        }
+                    }
+
+                    if(rang != threadRang) {
+                        setBegin(2*id + 1, getBegin(id));
+                        setEnd(2*id + 1, getMedian(id));
+                        setBegin(2*id + 2, getMedian(id) + 1);
+                        setEnd(2*id + 2, getEnd(id));
+                    }
+                }
+            });
+        }
+        for(auto j=0; j<threadForStep; ++j) {
+            threads[j].join();
+        }
+
+        stepBaseIndex += threadForStep;
+    }
+}
+
 void InputMatrix::processBlock(IrredundantMatrix &irredundantMatrix,
-                               int offset1, int length1, int offset2, int length2) {
+                               int offset1, int length1, int offset2, int length2, bool concurrent) {
     for(auto i=0; i<length1; ++i) {
         for(auto j=0; j<length2; ++j) {
-            TimeCollectorEntry difference(QHandling);
+            COLLECT_TIME(QHandling);
             irredundantMatrix.addRow(Row::createAsDifference(
                                          WorkRow(_qMatrix, offset1+i, _qColsCount),
-                                         WorkRow(_qMatrix, offset2+j, _qColsCount)));
+                                         WorkRow(_qMatrix, offset2+j, _qColsCount)), concurrent);
         }
     }
 }

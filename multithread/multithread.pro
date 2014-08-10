@@ -4,8 +4,8 @@ CONFIG += console
 CONFIG -= app_bundle
 CONFIG -= qt
 
-QMAKE_CXXFLAGS+= -std=c++11
-QMAKE_LFLAGS +=  -std=c++11
+QMAKE_CXXFLAGS+= -pthread -std=c++11
+QMAKE_LFLAGS +=  -pthread -std=c++11
 
 SOURCES += main.cpp \
     workrow.cpp \
@@ -13,7 +13,8 @@ SOURCES += main.cpp \
     irreduntant_matrix.cpp \
     row.cpp \
     timecollector.cpp \
-    optimal_plan.cpp
+    optimal_plan.cpp \
+    fast_plan.cpp
 
 HEADERS += \
     workrow.h \
@@ -22,7 +23,9 @@ HEADERS += \
     row.h \
     timecollector.h \
     optimal_plan.h \
-    optimal_plan.h
+    optimal_plan.h \
+    global_settings.h \
+    fast_plan.h
 
 OTHER_FILES +=
 

@@ -1,12 +1,12 @@
-#ifndef OPTIMAL_PLAN_H
-#define OPTIMAL_PLAN_H
+#ifndef FAST_PLAN_H
+#define FAST_PLAN_H
 
 #include <vector>
 
-class OptimalPlan
+class FastPlan
 {
 public:
-    OptimalPlan(int* counts, int len);
+    FastPlan(int* counts, int len);
 
 
     int FindNextStep(int begin, int end);
@@ -20,8 +20,6 @@ private:
     int* _counts;
     std::vector<int> _indexes;
     std::vector<int> _lastIndexes;
-    std::vector<int> _calcIndexes;
-    std::vector<int> _optimalPlan;
 };
 
-#endif // OPTIMAL_PLAN_H
+#endif // FAST_PLAN_H

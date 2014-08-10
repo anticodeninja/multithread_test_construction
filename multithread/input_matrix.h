@@ -6,7 +6,7 @@
 
 #include "irredundant_matrix.h"
 
-class OptimalPlan;
+class FastPlan;
 
 class InputMatrix
 {
@@ -17,11 +17,13 @@ public:
 
     void printFeatureMatrix(std::ostream& stream, bool printSize = false);
     void printImageMatrix(std::ostream& stream, bool printSize = false);
-    void calculateCoverageMatrix(IrredundantMatrix& irredundantMatrix);
-    void processBlock(IrredundantMatrix &irredundantMatrix, int offset1, int length1, int offset2, int length2);
+    void processBlock(IrredundantMatrix &irredundantMatrix,
+                      int offset1, int length1, int offset2, int length2, bool concurrent);
     void printDebugInfo(std::ostream &stream);
-    void calcOptimalPlan();
-    void calcOptimalPlan(int begin, int end);
+
+    void calculateSingleThread(IrredundantMatrix& irredundantMatrix);
+    void calculateMultiThreadWithOptimalPlanBuilding(IrredundantMatrix& irredundantMatrix,
+                                                     bool differentThreadMatrix);
 
 public:
     inline void setFeature(int i, int j, int value)
@@ -64,7 +66,7 @@ private:
 
     std::vector<int> _r2Indexes;
     std::vector<int> _r2Counts;
-    OptimalPlan* _optimalPlan;
+    FastPlan* _planBuilder;
 };
 
 #endif // INPUTMATRIX_H>
