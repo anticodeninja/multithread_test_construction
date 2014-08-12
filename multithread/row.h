@@ -1,15 +1,22 @@
 #ifndef ROW_H
 #define ROW_H
 
+#include <utility>
+
 #include "workrow.h"
 
 class Row
 {
 public:
-    Row(const WorkRow& workRow);
-    Row(const Row& row);
+    Row();
     Row(int width);
-    Row& operator=(const Row& right);
+
+    Row(Row&& row);
+    Row& operator=(Row&& row);
+
+    Row(const Row& row) = delete;
+    Row& operator=(const Row& right) = delete;
+
     ~Row();
 
 public:

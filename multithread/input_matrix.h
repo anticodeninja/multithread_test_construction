@@ -4,7 +4,7 @@
 #include <iostream>
 #include <vector>
 
-#include "irredundant_matrix.h"
+#include "irredundant_matrix_base.h"
 
 class FastPlan;
 
@@ -17,13 +17,15 @@ public:
 
     void printFeatureMatrix(std::ostream& stream, bool printSize = false);
     void printImageMatrix(std::ostream& stream, bool printSize = false);
-    void processBlock(IrredundantMatrix &irredundantMatrix,
+    void processBlock(IrredundantMatrixBase &irredundantMatrix,
                       int offset1, int length1, int offset2, int length2, bool concurrent);
     void printDebugInfo(std::ostream &stream);
 
-    void calculateSingleThread(IrredundantMatrix& irredundantMatrix);
-    void calculateMultiThreadWithOptimalPlanBuilding(IrredundantMatrix& irredundantMatrix,
-                                                     bool differentThreadMatrix);
+    void calculateSingleThread(IrredundantMatrixBase& irredundantMatrix,
+                               bool differentMatrices);
+
+    void calculateMultiThreadWithOptimalPlanBuilding(IrredundantMatrixBase& irredundantMatrix,
+                                                     bool differentThreadMatrices);
 
 public:
     inline void setFeature(int i, int j, int value)

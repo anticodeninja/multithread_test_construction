@@ -10,22 +10,26 @@ QMAKE_LFLAGS +=  -pthread -std=c++11
 SOURCES += main.cpp \
     workrow.cpp \
     input_matrix.cpp \
-    irreduntant_matrix.cpp \
     row.cpp \
     timecollector.cpp \
     optimal_plan.cpp \
-    fast_plan.cpp
+    fast_plan.cpp \
+    irredundant_matrix_array.cpp \
+    irreduntant_matrix_queue.cpp \
+    irredundant_matrix_base.cpp
 
 HEADERS += \
     workrow.h \
-    irredundant_matrix.h \
     input_matrix.h \
     row.h \
     timecollector.h \
     optimal_plan.h \
     optimal_plan.h \
     global_settings.h \
-    fast_plan.h
+    fast_plan.h \
+    irredundant_matrix_base.h \
+    irredundant_matrix_array.h \
+    irredundant_matrix_queue.h
 
 OTHER_FILES +=
 

@@ -6,14 +6,15 @@
 #include <mutex>
 
 #include "row.h"
+#include "irredundant_matrix_base.h"
 
-class IrredundantMatrix
+class IrredundantMatrixQueue : public IrredundantMatrixBase
 {
 
 public:
-    IrredundantMatrix();
-    void addRow(const Row& row, bool concurrent);
-    void printMatrix(std::ostream& stream, bool printSize = false);
+    IrredundantMatrixQueue();
+    void addRow(Row &row, bool concurrent);
+    void printMatrix(std::ostream& stream);
 
 private:
     std::deque<Row> _rows;

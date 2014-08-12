@@ -7,55 +7,42 @@
 
 const int SKIP_VALUE = std::numeric_limits<int>::min();
 
-Row::Row(const WorkRow& workRow) {
-    _width = workRow.getWidth();
-    _values = new int[_width];
-
-    for(auto i=0; i<_width; ++i) {
-        setValue(i, workRow.getValue(i));
-    }
-}
-
-Row::Row(const Row &row)
+Row::Row()
+    : _width(0),
+      _values(nullptr)
 {
-    _width = row.getWidth();
-    _values = new int[_width];
-
-    for(auto i=0; i<_width; ++i) {
-        setValue(i, row.getValue(i));
-    }
 }
 
 Row::Row(int width)
+    : _width(width),
+      _values(new int[width])
 {
-    _width = width;
-    _values = new int[_width];
-
-    for(auto i=0; i<_width; ++i) {
-        setValue(i, 0);
-    }
 }
 
-Row& Row::operator=(const Row &right)
-{
-    if (this == &right) {
-        return *this;
-    }
+Row::Row(Row &&row) {
+    _values = row._values;
+    _width = row._width;
 
-    if(getWidth() != right.getWidth()) {
-        delete[] _values;
-        _width = right.getWidth();
-        _values = new int[_width];
-    }
+    row._values = nullptr;
+    row._width = 0;
+}
 
-    for(auto i=0; i<_width; ++i) {
-        setValue(i, right.getValue(i));
-    }
+Row& Row::operator=(Row &&row) {
+    if(_values != nullptr)
+        delete [] _values;
+
+    _values = row._values;
+    _width = row._width;
+
+    row._values = nullptr;
+    row._width = 0;
 }
 
 Row::~Row()
 {
-    delete[] _values;
+    if(_values != nullptr)
+        delete[] _values;
+    _values = nullptr;
 }
 
 Row Row::createAsDifference(const WorkRow &w1, const WorkRow &w2)
@@ -63,7 +50,7 @@ Row Row::createAsDifference(const WorkRow &w1, const WorkRow &w2)
     if(w1.getWidth() != w2.getWidth())
         throw std::invalid_argument("Widths aren't equal");
 
-    auto temp = Row(w1.getWidth());
+    Row temp(w1.getWidth());
     for(auto i=0; i<w1.getWidth(); ++i) {
         if(w1.getValue(i) == std::numeric_limits<int>::min() ||
            w2.getValue(i) == std::numeric_limits<int>::min())

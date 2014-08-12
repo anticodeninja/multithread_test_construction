@@ -6,6 +6,9 @@
 #include "timecollector.h"
 #include "input_matrix.h"
 
+#include "irredundant_matrix_array.h"
+#include "irredundant_matrix_queue.h"
+
 using namespace std;
 
 int main(int argc, char** argv)
@@ -32,12 +35,13 @@ int main(int argc, char** argv)
     inputMatrix.printDebugInfo(cout);
     #endif
 
-    IrredundantMatrix irredundantMatrix;
-//    inputMatrix.calculateSingleThread(irredundantMatrix);
-    inputMatrix.calculateMultiThreadWithOptimalPlanBuilding(irredundantMatrix, false);
+//    IrredundantMatrixQueue irredundantMatrix;
+    IrredundantMatrixArray irredundantMatrix;
+    inputMatrix.calculateSingleThread(irredundantMatrix, false);
+//    inputMatrix.calculateMultiThreadWithOptimalPlanBuilding(irredundantMatrix, false);
 
     cout << "Coverage Matrix:" << endl;
-    irredundantMatrix.printMatrix(cout, true);
+    irredundantMatrix.printMatrix(cout);
 
     #ifdef TIME_PROFILE
     all.Stop();

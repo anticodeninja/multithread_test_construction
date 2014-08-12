@@ -192,7 +192,8 @@ void InputMatrix::sortMatrix() {
     delete[] oldR2Matrix;
 }
 
-void InputMatrix::calculateSingleThread(IrredundantMatrix &irredundantMatrix) {
+void InputMatrix::calculateSingleThread(IrredundantMatrixBase &irredundantMatrix,
+                                        bool differentMatrix) {
     for(size_t i=0; i<_r2Indexes.size()-1; ++i) {
         for(size_t j=i+1; j<_r2Indexes.size(); ++j) {
             processBlock(irredundantMatrix, _r2Indexes[i], _r2Counts[i], _r2Indexes[j], _r2Counts[j], false);
@@ -200,8 +201,8 @@ void InputMatrix::calculateSingleThread(IrredundantMatrix &irredundantMatrix) {
     }
 }
 
-void InputMatrix::calculateMultiThreadWithOptimalPlanBuilding(IrredundantMatrix &irredundantMatrix,
-                                                              bool differentThreadIrreduntant)
+void InputMatrix::calculateMultiThreadWithOptimalPlanBuilding(IrredundantMatrixBase &irredundantMatrix,
+                                                              bool differentMatrix)
 {
     auto threadRang = 1;
     auto indexesCount = 0;
@@ -214,7 +215,7 @@ void InputMatrix::calculateMultiThreadWithOptimalPlanBuilding(IrredundantMatrix 
     DEBUG_INFO("MaxThreads: " << maxThreads);
 
     std::vector<int> indexes(3 * indexesCount);
-    std::vector<IrredundantMatrix> threadIrredunantMatrix(maxThreads);
+    std::vector<std::unique_ptr<IrredundantMatrixBase>> threadIrredunantMatrices(maxThreads);
     std::vector<std::thread> threads(maxThreads);
 
     auto setBegin = [&indexes](int id, int value) {indexes[3*id + 0] = value;};
@@ -273,7 +274,7 @@ void InputMatrix::calculateMultiThreadWithOptimalPlanBuilding(IrredundantMatrix 
     }
 }
 
-void InputMatrix::processBlock(IrredundantMatrix &irredundantMatrix,
+void InputMatrix::processBlock(IrredundantMatrixBase &irredundantMatrix,
                                int offset1, int length1, int offset2, int length2, bool concurrent) {
     for(auto i=0; i<length1; ++i) {
         for(auto j=0; j<length2; ++j) {

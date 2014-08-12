@@ -1,18 +1,19 @@
-#include "irredundant_matrix.h"
+#include "irredundant_matrix_queue.h"
 
 #include <limits>
+#include <utility>
 
 #include "global_settings.h"
 #include "timecollector.h"
 
-IrredundantMatrix::IrredundantMatrix() {
+IrredundantMatrixQueue::IrredundantMatrixQueue() {
 }
 
-void IrredundantMatrix::addRow(const Row &row, bool concurent) {
+void IrredundantMatrixQueue::addRow(Row &row, bool concurrent) {
     COLLECT_TIME(RMerging);
 
     std::unique_lock<std::mutex> lock(_mutex, std::defer_lock);
-    if(concurent) {
+    if(concurrent) {
         COLLECT_TIME(CrossThreading);
         lock.lock();
     }
@@ -29,16 +30,14 @@ void IrredundantMatrix::addRow(const Row &row, bool concurent) {
         ++i;
     }
 
-    _rows.push_back(row);
+    _rows.push_back(std::move(row));
 }
 
-void IrredundantMatrix::printMatrix(std::ostream &stream, bool printSize)
+void IrredundantMatrixQueue::printMatrix(std::ostream &stream)
 {
     COLLECT_TIME(WritingOutput);
 
-    if(printSize)
-        stream << _rows.size() << " " << (_rows.size() > 0 ? _rows[0].getWidth() : 0) << std::endl;
-
+    stream << _rows.size() << " " << (_rows.size() > 0 ? _rows[0].getWidth() : 0) << std::endl;
     for(auto i=_rows.begin(); i !=_rows.end(); ++i, stream << std::endl) {
         for(size_t j=0; j < i->getWidth(); ++j, stream << " ") {
             if(i->getValue(j) == std::numeric_limits<int>::min())
