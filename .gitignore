@@ -1,3 +1,5 @@
 input_data.txt
+output_data.txt
+time_collector*.txt
 build-*
 *.pro.user*

@@ -3,11 +3,17 @@
 #include <thread>
 #include <iostream>
 
-TimeCollectorEntry::TimeCollectorEntry(int state, bool autoCollect)
+#include "global_settings.h"
+
+time_point TimeCollector::_initializeTime;
+std::vector<TimeBaseEntry> TimeCollector::_timeCollectors;
+std::mutex TimeCollector::_mutex;
+
+TimeCollectorEntry::TimeCollectorEntry(int state)
+    : _state(state),
+      _startTime(std::chrono::high_resolution_clock::now()),
+      _collected(false)
 {
-    _autoCollect = autoCollect;
-    _state = state;
-    _startTime = std::chrono::high_resolution_clock::now();
 }
 
 TimeCollectorEntry::~TimeCollectorEntry()
@@ -15,37 +21,36 @@ TimeCollectorEntry::~TimeCollectorEntry()
     Stop();
 }
 
-std::chrono::high_resolution_clock::duration TimeCollectorEntry::Stop()
+void TimeCollectorEntry::Stop()
 {
-    std::chrono::high_resolution_clock::duration duration =
-            std::chrono::high_resolution_clock::duration::zero();
+    if(_collected)
+        return;
+    _collected = true;
 
-    if(_startTime != std::chrono::high_resolution_clock::time_point::min())
-    {
-        duration = std::chrono::high_resolution_clock::now() - _startTime;
-        _startTime = std::chrono::high_resolution_clock::time_point::min();
+    _endTime = std::chrono::high_resolution_clock::now();
+    TimeCollector::AddToTimeCollector(*this);
+}
+
+void TimeCollector::Initialize(int reserve)
+{
+    _initializeTime = std::chrono::high_resolution_clock::now();
+    _timeCollectors.reserve(reserve);
+}
+
+void TimeCollector::AddToTimeCollector(const TimeCollectorEntry &entry)
+{
+    TAKE_LOCK(_mutex);
+    _timeCollectors.push_back(TimeBaseEntry(entry.getState(), entry.getStartTime(), entry.getEndTime()));
+}
+
+void TimeCollector::PrintInfo(std::ostream &stream)
+{
+    stream << _timeCollectors.size() << std::endl;
+    for(auto i = _timeCollectors.begin(); i != _timeCollectors.end(); ++i) {
+        stream << i->getState() << " ";
+        stream << std::chrono::duration_cast<time_duration>(i->getStartTime() - _initializeTime).count();
+        stream << " ";
+        stream << std::chrono::duration_cast<time_duration>(i->getEndTime() - _initializeTime).count();
+        stream << std::endl;
     }
-
-    if(_autoCollect)
-        TimeCollector::AddToTimeCollector(_state, duration);
-    return duration;
-}
-
-std::vector<std::chrono::high_resolution_clock::duration> TimeCollector::_timeCollectors;
-std::mutex TimeCollector::_mutex;
-
-void TimeCollector::Initialize(int states)
-{
-    _timeCollectors.resize(states);
-}
-
-void TimeCollector::AddToTimeCollector(int state, std::chrono::high_resolution_clock::duration time)
-{
-    std::lock_guard<std::mutex> lock(_mutex);
-    _timeCollectors[state] += time;
-}
-
-std::chrono::high_resolution_clock::duration TimeCollector::GetTimeValue(int state)
-{
-    return _timeCollectors[state];
 }

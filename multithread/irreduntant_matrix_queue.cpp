@@ -9,12 +9,12 @@
 IrredundantMatrixQueue::IrredundantMatrixQueue() {
 }
 
-void IrredundantMatrixQueue::addRow(Row &row, bool concurrent) {
-    COLLECT_TIME(RMerging);
+void IrredundantMatrixQueue::addRow(Row&& row, bool concurrent) {
+    COLLECT_TIME(Timers::RMerging);
 
     std::unique_lock<std::mutex> lock(_mutex, std::defer_lock);
     if(concurrent) {
-        COLLECT_TIME(CrossThreading);
+        COLLECT_TIME(Timers::CrossThreading);
         lock.lock();
     }
 
@@ -33,17 +33,3 @@ void IrredundantMatrixQueue::addRow(Row &row, bool concurrent) {
     _rows.push_back(std::move(row));
 }
 
-void IrredundantMatrixQueue::printMatrix(std::ostream &stream)
-{
-    COLLECT_TIME(WritingOutput);
-
-    stream << _rows.size() << " " << (_rows.size() > 0 ? _rows[0].getWidth() : 0) << std::endl;
-    for(auto i=_rows.begin(); i !=_rows.end(); ++i, stream << std::endl) {
-        for(size_t j=0; j < i->getWidth(); ++j, stream << " ") {
-            if(i->getValue(j) == std::numeric_limits<int>::min())
-                stream << '-';
-            else
-                stream << i->getValue(j);
-        }
-    }
-}

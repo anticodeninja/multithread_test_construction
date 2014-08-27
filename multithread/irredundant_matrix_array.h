@@ -3,7 +3,6 @@
 
 #include <iostream>
 #include <vector>
-#include <mutex>
 
 #include "irredundant_matrix_base.h"
 
@@ -11,12 +10,17 @@ class IrredundantMatrixArray : public IrredundantMatrixBase
 {
 public:
     IrredundantMatrixArray();
-    void addRow(Row row, bool concurrent);
-    void printMatrix(std::ostream& stream);
+    virtual void addRow(Row&& row, bool concurrent);
+    virtual void enumerate(std::function<void (Row&)> callback);
+
+    virtual int getHeight();
+    virtual int getWidth();
+
+    IrredundantMatrixArray(IrredundantMatrixArray& matrix) = delete;
+    IrredundantMatrixArray& operator=(IrredundantMatrixArray& matrix) = delete;
 
 private:
     std::vector<Row> _rows;
-    std::mutex _mutex;
 
 };
 

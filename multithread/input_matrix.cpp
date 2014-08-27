@@ -11,11 +11,12 @@
 #include "workrow.h"
 #include "timecollector.h"
 #include "fast_plan.h"
+#include "irredundant_matrix_array.h"
 
 InputMatrix::InputMatrix(std::istream& input)
 {
     {
-        TimeCollectorEntry reading(ReadingInput);
+        COLLECT_TIME(Timers::ReadingInput);
         input >> _rowsCount;
 
         input >> _qColsCount;
@@ -38,7 +39,7 @@ InputMatrix::InputMatrix(std::istream& input)
     }
 
     {
-        TimeCollectorEntry preparing(PreparingInput);
+        COLLECT_TIME(Timers::PreparingInput);
         calcR2Matrix();
         sortMatrix();
         calcR2Indexes();
@@ -53,12 +54,11 @@ InputMatrix::~InputMatrix() {
     delete _planBuilder;
 }
 
-void InputMatrix::printFeatureMatrix(std::ostream& stream, bool printSize) {
-    TimeCollectorEntry writing(WritingOutput);
+void InputMatrix::printFeatureMatrix(std::ostream& stream) {
+    COLLECT_TIME(Timers::WritingOutput);
 
-    if(printSize) {
-        stream << _rowsCount << " " << _qColsCount << std::endl;
-    }
+    stream << "# FeatureMatrix" << std::endl;
+    stream << _rowsCount << " " << _qColsCount << std::endl;
 
     for(auto i=0; i<_rowsCount; ++i, stream << std::endl) {
         for(auto j=0; j<_qColsCount; ++j, stream << " ") {
@@ -70,11 +70,11 @@ void InputMatrix::printFeatureMatrix(std::ostream& stream, bool printSize) {
     }
 }
 
-void InputMatrix::printImageMatrix(std::ostream& stream, bool printSize) {
-    TimeCollectorEntry writing(WritingOutput);
+void InputMatrix::printImageMatrix(std::ostream& stream) {
+    COLLECT_TIME(Timers::WritingOutput)
 
-    if(printSize)
-        stream << _rowsCount << " " << _rColsCount << std::endl;
+    stream << "# ImageMatrix" << std::endl;
+    stream << _rowsCount << " " << _rColsCount << std::endl;
 
     for(auto i=0; i<_rowsCount; ++i, stream << std::endl) {
         for(auto j=0; j<_rColsCount; ++j, stream << " ") {
@@ -88,7 +88,9 @@ void InputMatrix::printImageMatrix(std::ostream& stream, bool printSize) {
 }
 
 void InputMatrix::printDebugInfo(std::ostream& stream) {
-    stream << "R2 Indexes" << std::endl;
+    COLLECT_TIME(Timers::WritingOutput)
+
+    stream << "# R2Indexes" << std::endl;
     for(size_t i=0; i<_r2Counts.size(); ++i) {
         stream << _r2Indexes[i] << " - " << _r2Counts[i] << std::endl;
     }
@@ -192,17 +194,28 @@ void InputMatrix::sortMatrix() {
     delete[] oldR2Matrix;
 }
 
-void InputMatrix::calculateSingleThread(IrredundantMatrixBase &irredundantMatrix,
-                                        bool differentMatrix) {
+void InputMatrix::calculateSingleThread(IrredundantMatrixBase &irredundantMatrix) {
     for(size_t i=0; i<_r2Indexes.size()-1; ++i) {
         for(size_t j=i+1; j<_r2Indexes.size(); ++j) {
-            processBlock(irredundantMatrix, _r2Indexes[i], _r2Counts[i], _r2Indexes[j], _r2Counts[j], false);
+            std::unique_ptr<IrredundantMatrixArray> matrixForThread;
+            IrredundantMatrixBase *currentMatrix;
+            #ifdef DIFFERENT_MATRICES
+                matrixForThread = std::unique_ptr<IrredundantMatrixArray>(new IrredundantMatrixArray());
+                currentMatrix = &*matrixForThread;
+            #else
+                currentMatrix = &irredundantMatrix;
+            #endif
+
+            processBlock(*currentMatrix, _r2Indexes[i], _r2Counts[i], _r2Indexes[j], _r2Counts[j], false);
+
+            #ifdef DIFFERENT_MATRICES
+                irredundantMatrix.addMatrix(std::move(*matrixForThread), false);
+            #endif
         }
     }
 }
 
-void InputMatrix::calculateMultiThreadWithOptimalPlanBuilding(IrredundantMatrixBase &irredundantMatrix,
-                                                              bool differentMatrix)
+void InputMatrix::calculateMultiThreadWithOptimalPlanBuilding(IrredundantMatrixBase &irredundantMatrix)
 {
     auto threadRang = 1;
     auto indexesCount = 0;
@@ -235,22 +248,32 @@ void InputMatrix::calculateMultiThreadWithOptimalPlanBuilding(IrredundantMatrixB
 
         for(auto j=0; j<threadForStep; ++j) {
             auto id = stepBaseIndex + j;
-            COLLECT_TIME(Threading);
-            threads[j] = std::thread([rang, id, threadRang, this, &irredundantMatrix, &indexes,
+            COLLECT_TIME(Timers::Threading);
+            threads[j] = std::thread([this, rang, id, threadRang,
+                                     &irredundantMatrix, &indexes,
                                      &setBegin, &setMedian, &setEnd,
                                      &getBegin, &getMedian, &getEnd](){
+                std::unique_ptr<IrredundantMatrixArray> matrixForThread;
+                IrredundantMatrixBase *currentMatrix;
+                #ifdef DIFFERENT_MATRICES
+                    matrixForThread = std::unique_ptr<IrredundantMatrixArray>(new IrredundantMatrixArray());
+                    currentMatrix = &*matrixForThread;
+                #else
+                    currentMatrix = &irredundantMatrix;
+                #endif
+
                 DEBUG_INFO("Work on step: " << id <<
                            ", begin: " << getBegin(id) << ", end: " << getEnd(id));
 
                 if(getBegin(id) != getEnd(id)) {
                     {
-                        COLLECT_TIME(PlanBuilding);
+                        COLLECT_TIME(Timers::PlanBuilding);
                         setMedian(id, _planBuilder->FindNextStep(getBegin(id), getEnd(id)));
                     }
 
                     for(auto i=getBegin(id); i<=getMedian(id); ++i) {
                         for(auto j=getMedian(id)+1; j<=getEnd(id); ++j) {
-                            processBlock(irredundantMatrix,
+                            processBlock(*currentMatrix,
                                          _r2Indexes[_planBuilder->GetIndex(i)], _r2Counts[_planBuilder->GetIndex(i)],
                                          _r2Indexes[_planBuilder->GetIndex(j)], _r2Counts[_planBuilder->GetIndex(j)],
                                     true);
@@ -264,6 +287,10 @@ void InputMatrix::calculateMultiThreadWithOptimalPlanBuilding(IrredundantMatrixB
                         setEnd(2*id + 2, getEnd(id));
                     }
                 }
+
+                #ifdef DIFFERENT_MATRICES
+                    irredundantMatrix.addMatrix(std::move(*matrixForThread), true);
+                #endif
             });
         }
         for(auto j=0; j<threadForStep; ++j) {
@@ -278,7 +305,7 @@ void InputMatrix::processBlock(IrredundantMatrixBase &irredundantMatrix,
                                int offset1, int length1, int offset2, int length2, bool concurrent) {
     for(auto i=0; i<length1; ++i) {
         for(auto j=0; j<length2; ++j) {
-            COLLECT_TIME(QHandling);
+            COLLECT_TIME(Timers::QHandling);
             irredundantMatrix.addRow(Row::createAsDifference(
                                          WorkRow(_qMatrix, offset1+i, _qColsCount),
                                          WorkRow(_qMatrix, offset2+j, _qColsCount)), concurrent);

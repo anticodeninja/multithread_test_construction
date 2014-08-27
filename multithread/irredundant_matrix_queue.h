@@ -13,8 +13,10 @@ class IrredundantMatrixQueue : public IrredundantMatrixBase
 
 public:
     IrredundantMatrixQueue();
-    void addRow(Row &row, bool concurrent);
-    void printMatrix(std::ostream& stream);
+    void addRow(Row &&row, bool concurrent);
+
+    IrredundantMatrixQueue(IrredundantMatrixQueue& matrix) = delete;
+    IrredundantMatrixQueue& operator=(IrredundantMatrixQueue& matrix) = delete;
 
 private:
     std::deque<Row> _rows;

@@ -1,10 +1,7 @@
 #ifndef GLOBAL_SETTINGS_H
 #define GLOBAL_SETTINGS_H
 
-#define DEBUG_MODE 1
-#define TIME_PROFILE 1
-
-enum TimeCollectorCategory
+enum class Timers : int
 {
     All,
     ReadingInput,
@@ -27,9 +24,16 @@ enum TimeCollectorCategory
 
 #ifdef TIME_PROFILE
 #define COLLECT_TIME(counter)\
-    TimeCollectorEntry __timeCollectorEntry_##counter(counter);
+    TimeCollectorEntry __timeCollectorEntry(static_cast<int>(counter));
 #else
 #define COLLECT_TIME(counter);
+#endif
+
+#ifdef MULTITHREAD
+#define TAKE_LOCK(mutex_name)\
+    std::lock_guard<std::mutex> lock(mutex_name);
+#else
+#define TAKE_LOCK(mutex);
 #endif
 
 #endif // GLOBAL_SETTINGS_H

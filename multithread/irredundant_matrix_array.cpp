@@ -9,13 +9,13 @@ IrredundantMatrixArray::IrredundantMatrixArray()
 {
 }
 
-void IrredundantMatrixArray::addRow(Row row, bool concurrent)
+void IrredundantMatrixArray::addRow(Row&& row, bool concurrent)
 {
-    COLLECT_TIME(RMerging);
+    COLLECT_TIME(Timers::RMerging);
 
     std::unique_lock<std::mutex> lock(_mutex, std::defer_lock);
     if(concurrent) {
-        COLLECT_TIME(CrossThreading);
+        COLLECT_TIME(Timers::CrossThreading);
         lock.lock();
     }
 
@@ -37,19 +37,21 @@ void IrredundantMatrixArray::addRow(Row row, bool concurrent)
     _rows.push_back(std::move(row));
 }
 
-void IrredundantMatrixArray::printMatrix(std::ostream &stream)
+void IrredundantMatrixArray::enumerate(std::function<void (Row&)> callback)
 {
-    COLLECT_TIME(WritingOutput);
-
-    stream << _rows.size() << " " << (_rows.size() > 0 ? _rows[0].getWidth() : 0) << std::endl;
-    for(auto i=_rows.begin(); i !=_rows.end(); ++i, stream << std::endl) {
-        for(size_t j=0; j < i->getWidth(); ++j, stream << " ") {
-            if(i->getValue(j) == std::numeric_limits<int>::min())
-                stream << '-';
-            else
-                stream << i->getValue(j);
-        }
+    for(auto i=_rows.begin(); i!=_rows.end(); ++i) {
+        callback(*i);
     }
+}
+
+int IrredundantMatrixArray::getHeight()
+{
+    return _rows.size();
+}
+
+int IrredundantMatrixArray::getWidth()
+{
+    return _rows.size() != 0 ? _rows[0].getWidth() : 0;
 }
 
 
