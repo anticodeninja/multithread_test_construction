@@ -3,3 +3,5 @@ output_data.txt
 time_collector*.txt
 build-*
 *.pro.user*
+*/.idea
+__pycache__
