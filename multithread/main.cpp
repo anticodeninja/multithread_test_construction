@@ -18,11 +18,11 @@ int main()
     TimeCollectorEntry all(static_cast<int>(Timers::All));
     #endif
 
-    ifstream input_stream("../input_data.txt");
+    ifstream input_stream("input_data.txt");
     InputMatrix inputMatrix(input_stream);
 
     #ifdef DEBUG_MODE
-    ofstream debugOutput("../debug_output.txt");
+    ofstream debugOutput("debug_output.txt");
     inputMatrix.printFeatureMatrix(debugOutput);
     inputMatrix.printImageMatrix(debugOutput);
     inputMatrix.printDebugInfo(debugOutput);
@@ -35,12 +35,12 @@ int main()
     inputMatrix.calculateSingleThread(irredundantMatrix);
     #endif
 
-    ofstream resultOutput("../output_data.txt");
+    ofstream resultOutput("output_data.txt");
     irredundantMatrix.printMatrix(resultOutput);
 
     #ifdef TIME_PROFILE
     all.Stop();
-    std::ofstream timeCollectorOutput("../time_collector.txt");
+    std::ofstream timeCollectorOutput("time_collector.txt");
     TimeCollector::PrintInfo(timeCollectorOutput);
     #endif
 
