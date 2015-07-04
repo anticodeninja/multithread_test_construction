@@ -11,7 +11,7 @@
 #include "workrow.h"
 #include "timecollector.h"
 #include "fast_plan.h"
-#include "irredundant_matrix_array.h"
+#include "irredundant_matrix.h"
 
 InputMatrix::InputMatrix(std::istream& input)
 {
@@ -107,6 +107,7 @@ int InputMatrix::parseValue(std::istream &stream)
 
 void InputMatrix::calcR2Matrix()
 {
+    COLLECT_TIME(Timers::CalcR2Matrix);
     auto currentId = 0;
     std::map<WorkRow, int> mappings;
     for(auto i=0; i<_rowsCount; ++i) {
@@ -125,6 +126,7 @@ void InputMatrix::calcR2Matrix()
 }
 
 void InputMatrix::calcR2Indexes() {
+    COLLECT_TIME(Timers::CalcR2Indexes);
     auto currentId = 0;
     auto newId = 0;
     auto startIndex = 0;
@@ -145,6 +147,7 @@ void InputMatrix::calcR2Indexes() {
 }
 
 void InputMatrix::sortMatrix() {
+    COLLECT_TIME(Timers::SortMatrix);
     std::vector<int> counts(_r2Count);
     for(auto i=0; i<_rowsCount; ++i) {
         counts[_r2Matrix[i]] += 1;
@@ -194,13 +197,13 @@ void InputMatrix::sortMatrix() {
     delete[] oldR2Matrix;
 }
 
-void InputMatrix::calculateSingleThread(IrredundantMatrixBase &irredundantMatrix) {
+void InputMatrix::calculateSingleThread(IrredundantMatrix &irredundantMatrix) {
     for(size_t i=0; i<_r2Indexes.size()-1; ++i) {
         for(size_t j=i+1; j<_r2Indexes.size(); ++j) {
-            std::unique_ptr<IrredundantMatrixArray> matrixForThread;
-            IrredundantMatrixBase *currentMatrix;
+            std::unique_ptr<IrredundantMatrix> matrixForThread;
+            IrredundantMatrix *currentMatrix;
             #ifdef DIFFERENT_MATRICES
-                matrixForThread = std::unique_ptr<IrredundantMatrixArray>(new IrredundantMatrixArray());
+                matrixForThread = std::unique_ptr<IrredundantMatrix>(new IrredundantMatrix());
                 currentMatrix = &*matrixForThread;
             #else
                 currentMatrix = &irredundantMatrix;
@@ -215,7 +218,7 @@ void InputMatrix::calculateSingleThread(IrredundantMatrixBase &irredundantMatrix
     }
 }
 
-void InputMatrix::calculateMultiThreadWithOptimalPlanBuilding(IrredundantMatrixBase &irredundantMatrix)
+void InputMatrix::calculateMultiThreadWithOptimalPlanBuilding(IrredundantMatrix &irredundantMatrix)
 {
     auto threadRang = 1;
     auto indexesCount = 0;
@@ -228,7 +231,7 @@ void InputMatrix::calculateMultiThreadWithOptimalPlanBuilding(IrredundantMatrixB
     DEBUG_INFO("MaxThreads: " << maxThreads);
 
     std::vector<int> indexes(3 * indexesCount);
-    std::vector<std::unique_ptr<IrredundantMatrixBase>> threadIrredunantMatrices(maxThreads);
+    std::vector<std::unique_ptr<IrredundantMatrix>> threadIrredunantMatrices(maxThreads);
     std::vector<std::thread> threads(maxThreads);
 
     auto setBegin = [&indexes](int id, int value) {indexes[3*id + 0] = value;};
@@ -253,10 +256,10 @@ void InputMatrix::calculateMultiThreadWithOptimalPlanBuilding(IrredundantMatrixB
                                      &irredundantMatrix, &indexes,
                                      &setBegin, &setMedian, &setEnd,
                                      &getBegin, &getMedian, &getEnd](){
-                std::unique_ptr<IrredundantMatrixArray> matrixForThread;
-                IrredundantMatrixBase *currentMatrix;
+                std::unique_ptr<IrredundantMatrix> matrixForThread;
+                IrredundantMatrix *currentMatrix;
                 #ifdef DIFFERENT_MATRICES
-                    matrixForThread = std::unique_ptr<IrredundantMatrixArray>(new IrredundantMatrixArray());
+                    matrixForThread = std::unique_ptr<IrredundantMatrix>(new IrredundantMatrix());
                     currentMatrix = &*matrixForThread;
                 #else
                     currentMatrix = &irredundantMatrix;
@@ -301,7 +304,7 @@ void InputMatrix::calculateMultiThreadWithOptimalPlanBuilding(IrredundantMatrixB
     }
 }
 
-void InputMatrix::processBlock(IrredundantMatrixBase &irredundantMatrix,
+void InputMatrix::processBlock(IrredundantMatrix &irredundantMatrix,
                                int offset1, int length1, int offset2, int length2, bool concurrent) {
     for(auto i=0; i<length1; ++i) {
         for(auto j=0; j<length2; ++j) {

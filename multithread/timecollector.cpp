@@ -1,5 +1,7 @@
 #include "timecollector.h"
 
+#include <map>
+
 #include <thread>
 #include <iostream>
 
@@ -11,7 +13,8 @@ std::mutex TimeCollector::_mutex;
 
 TimeCollectorEntry::TimeCollectorEntry(int state)
     : _state(state),
-      _startTime(std::chrono::high_resolution_clock::now()),
+      _threadId(std::this_thread::get_id()),
+      _startTime(std::chrono::steady_clock::now()),
       _collected(false)
 {
 }
@@ -27,27 +30,39 @@ void TimeCollectorEntry::Stop()
         return;
     _collected = true;
 
-    _endTime = std::chrono::high_resolution_clock::now();
+    _endTime = std::chrono::steady_clock::now();
     TimeCollector::AddToTimeCollector(*this);
 }
 
 void TimeCollector::Initialize(int reserve)
 {
-    _initializeTime = std::chrono::high_resolution_clock::now();
+    _initializeTime = std::chrono::steady_clock::now();
     _timeCollectors.reserve(reserve);
 }
 
 void TimeCollector::AddToTimeCollector(const TimeCollectorEntry &entry)
 {
     TAKE_LOCK(_mutex);
-    _timeCollectors.push_back(TimeBaseEntry(entry.getState(), entry.getStartTime(), entry.getEndTime()));
+    _timeCollectors.push_back(TimeBaseEntry(entry.getState(), entry.getThreadId(),
+                                            entry.getStartTime(), entry.getEndTime()));
 }
 
-void TimeCollector::PrintInfo(std::ostream &stream)
+void TimeCollector::PrintInfo(std::ostream &stream, std::map<int, std::string> &states)
 {
     stream << _timeCollectors.size() << std::endl;
+
+    auto humanThreadId = 1;
+    std::map<std::thread::id, int> humanThreads;
+
     for(auto i = _timeCollectors.begin(); i != _timeCollectors.end(); ++i) {
-        stream << i->getState() << " ";
+        auto tempId = humanThreads.find(i->getThreadId());
+        if(tempId == humanThreads.end())
+        {
+            tempId = humanThreads.insert({i->getThreadId(), humanThreadId++}).first;
+        }
+
+        stream << tempId->second << " ";
+        stream << states[i->getState()] << " ";
         stream << std::chrono::duration_cast<time_duration>(i->getStartTime() - _initializeTime).count();
         stream << " ";
         stream << std::chrono::duration_cast<time_duration>(i->getEndTime() - _initializeTime).count();

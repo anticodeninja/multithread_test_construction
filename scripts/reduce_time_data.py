@@ -16,20 +16,20 @@ if data_skip == 0:
     data_skip = 1
 data_current = 0
 
-for str in input_file:
+for line in input_file:
     if data_current % data_skip == 0:
-        print("%d%%" % int(data_current/data_skip
-        ))
+        print("%d%%" % int(data_current/data_skip))
     data_current += 1
 
-    data = [int(x) for x in str.split(' ')]
+    data = line.split(' ')
+    thread, task, time_start, time_stop = int(data[0]), str(data[1]), int(data[2]), int(data[3])
 
-    if data[0] not in states:
-        states[data[0]] = dict(ranges=[], sum=0, count=0)
+    if task not in states:
+        states[task] = dict(ranges=[], sum=0, count=0)
 
-    utils.combine_ranges(states[data[0]]['ranges'], data[1:])
-    states[data[0]]['sum'] += data[2] - data[1]
-    states[data[0]]['count'] += 1
+    utils.combine_ranges(states[task]['ranges'], [time_start, time_stop])
+    states[task]['sum'] += time_stop - time_start
+    states[task]['count'] += 1
 
 info_file = open("time_collector_info.txt", "w", encoding='utf-8')
 info=dict(

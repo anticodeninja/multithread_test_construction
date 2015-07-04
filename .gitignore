@@ -3,6 +3,11 @@ output_data.txt
 time_collector*.txt
 build-*
 *.pro.user*
-*/.idea
+*.idea*
 __pycache__
 bin
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+test/

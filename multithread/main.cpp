@@ -1,13 +1,12 @@
 #include <iostream>
 #include <fstream>
 #include <chrono>
+#include <map>
 
 #include "global_settings.h"
 #include "timecollector.h"
 #include "input_matrix.h"
-
-#include "irredundant_matrix_array.h"
-#include "irredundant_matrix_queue.h"
+#include "irredundant_matrix.h"
 
 using namespace std;
 
@@ -28,7 +27,8 @@ int main()
     inputMatrix.printDebugInfo(debugOutput);
     #endif
 
-    IrredundantMatrixArray irredundantMatrix;
+    IrredundantMatrix irredundantMatrix;
+
     #ifdef MULTITHREAD
     inputMatrix.calculateMultiThreadWithOptimalPlanBuilding(irredundantMatrix);
     #else
@@ -41,7 +41,24 @@ int main()
     #ifdef TIME_PROFILE
     all.Stop();
     std::ofstream timeCollectorOutput("time_collector.txt");
-    TimeCollector::PrintInfo(timeCollectorOutput);
+
+    std::map<int, std::string> names_string = {
+            { (int)Timers::All, "All"},
+            { (int)Timers::ReadingInput, "ReadingInput"},
+            { (int)Timers::PreparingInput, "PreparingInput"},
+            { (int)Timers::CalcR2Indexes, "CalcR2Indexes"},
+            { (int)Timers::SortMatrix, "SortMatrix"},
+            { (int)Timers::CalcR2Matrix, "CalcR2Matrix"},
+            { (int)Timers::PlanBuilding, "PlanBuilding"},
+            { (int)Timers::QHandling, "QHandling"},
+            { (int)Timers::RMerging, "RMerging"},
+            { (int)Timers::WritingOutput, "WritingOutput"},
+            { (int)Timers::Threading, "Threading"},
+            { (int)Timers::CrossThreading, "CrossThreading"},
+            { (int)Timers::TimeCollectorCount, "TimeCollectorCount"},
+    };
+
+    TimeCollector::PrintInfo(timeCollectorOutput, names_string);
     #endif
 
     return 0;

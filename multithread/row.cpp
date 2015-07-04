@@ -56,7 +56,7 @@ Row Row::createAsDifference(const WorkRow &w1, const WorkRow &w2)
            w2.getValue(i) == std::numeric_limits<int>::min())
             temp.setValue(i, std::numeric_limits<int>::min());
         else
-            temp.setValue(i, abs(w1.getValue(i) - w2.getValue(i)));
+            temp.setValue(i, std::abs(w1.getValue(i) - w2.getValue(i)));
     }
     return temp;
 }
