@@ -18,7 +18,7 @@ data_current = 0
 
 for line in input_file:
     if data_current % data_skip == 0:
-        print("%d%%" % int(data_current/data_skip))
+        print("%d%%" % int(data_current/data_skip), end='\r')
     data_current += 1
 
     data = line.split(' ')

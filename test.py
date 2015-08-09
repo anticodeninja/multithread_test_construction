@@ -6,6 +6,7 @@ import subprocess
 import shutil
 import sys
 
+from scripts.utils import validate_result
 
 BIN_DIR = "bin"
 BIN_NAME = "multithread"
@@ -30,6 +31,7 @@ DATA_SIZE = 11
 if len(sys.argv) > 1:
     DATA_SIZE = sys.argv[1]
 DATA_SET = "data/input_data_%s.txt" % DATA_SIZE
+REFERENCE_SET = "data/reference_%s.txt" % DATA_SIZE
 
 print("Input data set: %s" % DATA_SET)
 
@@ -49,6 +51,12 @@ for test in TEST_SET:
 
     print("Run %s in %s" % (test['name'], test_path))
     subprocess.check_call(os.path.join(".", BIN_NAME))
+
+    try:
+        validate_result(os.path.join(current_dir, REFERENCE_SET), "output_data.txt")
+        print("Everything is ok")
+    except Exception as e:
+        print(e)
 
     result_path = os.path.join(current_dir, RESULT_DIR, test['name'])
     print("Collect timelogs for %s in %s" % (test['name'], result_path))

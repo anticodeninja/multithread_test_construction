@@ -3,6 +3,14 @@
 
 __author__ = 'zzloiz'
 
+import os
+import ipdb
+
+def enumerate_file(filename):
+    for line in open(filename, "r"):
+        for word in line.split():
+            yield int(word)
+
 def intersect_range(range1, range2):
     if range2[0] > range1[0] and range2[1] < range1[1]:
         return True
@@ -44,3 +52,27 @@ def combine_ranges(ranges, range1):
             return
 
         i-=1
+        
+def validate_result(reference_file, result_file):
+    if not os.path.exists(reference_file):
+        return
+    
+    reference = enumerate_file(reference_file)
+    result = enumerate_file(result_file)
+
+    rows = next(reference)
+    cols = next(reference)
+
+    if rows != next(result):
+        raise Exception("Incorrect rows count")
+
+    if cols != next(result):
+        raise Exception("Incorrect cols count")
+
+    read_matrix = lambda x: set(tuple(next(x) for j in range(cols)) for i in range(rows))
+    reference_data = read_matrix(reference)
+    result_data = read_matrix(result)
+
+    if reference_data != result_data:
+        raise Exception("Non-identical rows")
+
