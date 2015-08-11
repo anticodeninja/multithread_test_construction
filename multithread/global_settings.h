@@ -1,6 +1,8 @@
 #ifndef GLOBAL_SETTINGS_H
 #define GLOBAL_SETTINGS_H
 
+#include <ostream>
+
 enum class Timers : int
 {
     All,
@@ -18,9 +20,11 @@ enum class Timers : int
     TimeCollectorCount
 };
 
+std::ostream& getDebugStream();
+
 #ifdef DEBUG_MODE
 #define DEBUG_INFO(args)\
-    std::cout << args << std::endl;
+    getDebugStream() << args << std::endl;
 #else
 #define DEBUG_INFO(args);
 #endif

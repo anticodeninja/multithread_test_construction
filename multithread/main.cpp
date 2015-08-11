@@ -8,23 +8,27 @@
 #include "input_matrix.h"
 #include "irredundant_matrix.h"
 
-using namespace std;
+std::ofstream* debugOutput;
+
+void printBuildFlags(std::ostream& stream);
 
 int main()
 {
+    debugOutput = new std::ofstream("debug_output.txt");
+    printBuildFlags(getDebugStream());
+
     #ifdef TIME_PROFILE
     TimeCollector::Initialize(static_cast<int>(Timers::TimeCollectorCount));
     TimeCollectorEntry all(static_cast<int>(Timers::All));
     #endif
 
-    ifstream input_stream("input_data.txt");
+    std::ifstream input_stream("input_data.txt");
     InputMatrix inputMatrix(input_stream);
 
     #ifdef DEBUG_MODE
-    ofstream debugOutput("debug_output.txt");
-    inputMatrix.printFeatureMatrix(debugOutput);
-    inputMatrix.printImageMatrix(debugOutput);
-    inputMatrix.printDebugInfo(debugOutput);
+    inputMatrix.printFeatureMatrix(getDebugStream());
+    inputMatrix.printImageMatrix(getDebugStream());
+    inputMatrix.printDebugInfo(getDebugStream());
     #endif
 
     IrredundantMatrix irredundantMatrix;
@@ -35,8 +39,13 @@ int main()
     inputMatrix.calculateSingleThread(irredundantMatrix);
     #endif
 
-    ofstream resultOutput("output_data.txt");
+    std::ofstream resultOutput("output_data.txt");
     irredundantMatrix.printMatrix(resultOutput);
+
+#ifdef DEBUG_MODE
+    getDebugStream() << "# Irreduntant Matrix" << std::endl;
+    irredundantMatrix.printMatrix(*debugOutput);
+#endif
 
     #ifdef TIME_PROFILE
     all.Stop();
@@ -61,6 +70,36 @@ int main()
     TimeCollector::PrintInfo(timeCollectorOutput, names_string);
     #endif
 
+    debugOutput->close();
+    delete debugOutput;
+
     return 0;
 }
 
+void printBuildFlags(std::ostream& debugOutput) {
+    debugOutput << "# BuildFlags" << std::endl;
+
+    #ifdef IRREDUNDANT_VECTOR
+    debugOutput << "- Irredundant Vector" << std::endl;
+    #endif
+
+    #ifdef TIME_PROFILE
+    debugOutput << "- Time Profile" << std::endl;
+    #endif
+
+    #ifdef DIFFERENT_MATRICES
+    debugOutput << "- Different Matrices" << std::endl;
+    #endif
+
+    #ifdef DEBUG_MODE
+    debugOutput << "- Debug Mode" << std::endl;
+    #endif
+
+    #ifdef MULTITHREAD
+    debugOutput << "- MultiThread" << std::endl;
+    #endif
+}
+
+std::ostream& getDebugStream() {
+    return *debugOutput;
+}

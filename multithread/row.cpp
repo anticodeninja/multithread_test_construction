@@ -3,7 +3,9 @@
 #include <stdexcept>
 #include <cmath>
 #include <limits>
+
 #include "workrow.h"
+#include "global_settings.h"
 
 const int SKIP_VALUE = std::numeric_limits<int>::min();
 
@@ -52,9 +54,8 @@ Row Row::createAsDifference(const WorkRow &w1, const WorkRow &w2)
 
     Row temp(w1.getWidth());
     for(auto i=0; i<w1.getWidth(); ++i) {
-        if(w1.getValue(i) == std::numeric_limits<int>::min() ||
-           w2.getValue(i) == std::numeric_limits<int>::min())
-            temp.setValue(i, std::numeric_limits<int>::min());
+        if(w1.getValue(i) == SKIP_VALUE || w2.getValue(i) == SKIP_VALUE)
+            temp.setValue(i, 0);
         else
             temp.setValue(i, std::abs(w1.getValue(i) - w2.getValue(i)));
     }
@@ -67,13 +68,18 @@ bool Row::isInclude(const Row &row) const
         throw std::invalid_argument("Widths aren't equal");
 
     for(auto i=0; i<getWidth(); ++i) {
-        if(
-           (row.getValue(i) != SKIP_VALUE && getValue(i) != SKIP_VALUE && row.getValue(i) > getValue(i)) ||
-           (row.getValue(i) != SKIP_VALUE && getValue(i) == SKIP_VALUE)
-        ) {
+        if(row.getValue(i) < getValue(i)) {
             return false;
         }
     }
 
     return true;
+}
+
+std::ostream& operator<<(std::ostream& stream, const Row& row)
+{
+    for(auto i=0; i<row.getWidth(); ++i) {
+        stream << row.getValue(i) << " ";
+    }
+    return stream;
 }

@@ -47,15 +47,18 @@ void IrredundantMatrix::addRow(Row&& row, bool concurrent) {
     auto i = _rows.begin();
     while(i != _rows.end()) {
         if(i->isInclude(row)) {
+            DEBUG_INFO("-CB " << row << " | " << *i);
             return;
         }
         if(row.isInclude(*i)) {
+            DEBUG_INFO("-CE " << row << " | " << *i);
             i = _rows.erase(i);
             continue;
         }
         ++i;
     }
 
+    DEBUG_INFO("-AR " << row);
     _rows.push_back(std::move(row));
 }
 #endif
@@ -68,7 +71,7 @@ void IrredundantMatrix::addMatrix(IrredundantMatrix &&matrix, bool concurrent)
         lock.lock();
     }
 
-    for(auto i=_rows.begin(); i!=_rows.end(); ++i) {
+    for(auto i=matrix._rows.begin(); i!=matrix._rows.end(); ++i) {
         addRow(std::move(*i), false);
     }
 }
