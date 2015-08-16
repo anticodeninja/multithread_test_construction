@@ -37,7 +37,7 @@ set(SOURCE_FILES
     multithread/input_matrix.cpp
     multithread/input_matrix.h
     multithread/irredundant_matrix.h
-    multithread/irreduntant_matrix.cpp
+    multithread/irredundant_matrix.cpp
     multithread/main.cpp
     multithread/optimal_plan.cpp
     multithread/optimal_plan.h

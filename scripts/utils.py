@@ -69,10 +69,28 @@ def validate_result(reference_file, result_file):
     if cols != next(result):
         raise Exception("Incorrect cols count")
 
-    read_matrix = lambda x: set(tuple(next(x) for j in range(cols)) for i in range(rows))
-    reference_data = read_matrix(reference)
-    result_data = read_matrix(result)
+    try:
+        read_matrix = lambda x: set(tuple(next(x) for j in range(cols)) for i in range(rows))
+        reference_data = read_matrix(reference)
+        result_data = read_matrix(result)
+    except:
+        raise Exception("Cannot parse output")
 
     if reference_data != result_data:
-        raise Exception("Non-identical rows")
+        print("reference additionals:")
+        for i in (reference_data - result_data):
+            print(i)
+        print("result additionals")
+        for i in (result_data - reference_data):
+            print(i)
+        raise Exception("Non-identical output")
 
+    try:
+        read_p = lambda x: [next(x) for i in range(cols)]
+        reference_p = read_p(reference)
+        result_p = read_p(result)
+    except:
+        raise Exception("Cannot parse p")
+
+    if reference_p != result_p:
+        raise Exception("Non-identical p")

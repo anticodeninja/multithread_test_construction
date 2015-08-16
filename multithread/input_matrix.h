@@ -35,10 +35,16 @@ public:
         return _qMatrix[i*_qColsCount + j];
     }
 
+    inline int getFeatureWidth() const
+    {
+        return _qColsCount;
+    }
+
     inline void setImage(int i, int j, int value)
     {
         _rMatrix[i*_rColsCount + j] = value;
     }
+
     inline int getImage(int i, int j) const
     {
         return _rMatrix[i*_rColsCount + j];

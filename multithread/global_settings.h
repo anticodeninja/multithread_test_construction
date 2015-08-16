@@ -2,6 +2,7 @@
 #define GLOBAL_SETTINGS_H
 
 #include <ostream>
+#include <mutex>
 
 enum class Timers : int
 {
@@ -20,13 +21,28 @@ enum class Timers : int
     TimeCollectorCount
 };
 
+std::mutex& getDebugStreamLock();
 std::ostream& getDebugStream();
 
 #ifdef DEBUG_MODE
 #define DEBUG_INFO(args)\
-    getDebugStream() << args << std::endl;
+    {\
+       std::unique_lock<std::mutex> debug_lock(getDebugStreamLock(), std::defer_lock);\
+       debug_lock.lock();\
+       getDebugStream() << args << std::endl;\
+    }
+#define DEBUG_BLOCK_START\
+    {\
+       std::unique_lock<std::mutex> debug_lock(getDebugStreamLock(), std::defer_lock);\
+       debug_lock.lock();
+#define DEBUG_BLOCK_END\
+    }
 #else
 #define DEBUG_INFO(args);
+#define DEBUG_BLOCK_START\
+    if(false){
+#define DEBUG_BLOCK_END\
+    }
 #endif
 
 #ifdef TIME_PROFILE

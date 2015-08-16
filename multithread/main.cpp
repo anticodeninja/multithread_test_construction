@@ -9,12 +9,14 @@
 #include "irredundant_matrix.h"
 
 std::ofstream* debugOutput;
+std::mutex* debugLock;
 
 void printBuildFlags(std::ostream& stream);
 
 int main()
 {
     debugOutput = new std::ofstream("debug_output.txt");
+    debugLock = new std::mutex();
     printBuildFlags(getDebugStream());
 
     #ifdef TIME_PROFILE
@@ -31,7 +33,7 @@ int main()
     inputMatrix.printDebugInfo(getDebugStream());
     #endif
 
-    IrredundantMatrix irredundantMatrix;
+    IrredundantMatrix irredundantMatrix(inputMatrix.getFeatureWidth());
 
     #ifdef MULTITHREAD
     inputMatrix.calculateMultiThreadWithOptimalPlanBuilding(irredundantMatrix);
@@ -41,10 +43,14 @@ int main()
 
     std::ofstream resultOutput("output_data.txt");
     irredundantMatrix.printMatrix(resultOutput);
+    resultOutput << std::endl;
+    irredundantMatrix.printR(resultOutput);
 
 #ifdef DEBUG_MODE
     getDebugStream() << "# Irreduntant Matrix" << std::endl;
     irredundantMatrix.printMatrix(*debugOutput);
+    getDebugStream() << "# R Matrix" << std::endl;
+    irredundantMatrix.printR(*debugOutput);
 #endif
 
     #ifdef TIME_PROFILE
@@ -72,6 +78,7 @@ int main()
 
     debugOutput->close();
     delete debugOutput;
+    delete debugLock;
 
     return 0;
 }
@@ -102,4 +109,8 @@ void printBuildFlags(std::ostream& debugOutput) {
 
 std::ostream& getDebugStream() {
     return *debugOutput;
+}
+
+std::mutex& getDebugStreamLock() {
+    return *debugLock;
 }

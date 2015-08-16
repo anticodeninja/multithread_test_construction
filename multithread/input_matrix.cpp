@@ -127,10 +127,10 @@ void InputMatrix::calcR2Matrix()
 
 void InputMatrix::calcR2Indexes() {
     COLLECT_TIME(Timers::CalcR2Indexes);
-    auto currentId = 0;
     auto newId = 0;
     auto startIndex = 0;
 
+    auto currentId = _r2Matrix[0];
     _r2Indexes.push_back(0);
     for(auto i=0; i<_rowsCount; ++i) {
         if(_r2Matrix[i] != currentId) {
@@ -203,7 +203,7 @@ void InputMatrix::calculateSingleThread(IrredundantMatrix &irredundantMatrix) {
             std::unique_ptr<IrredundantMatrix> matrixForThread;
             IrredundantMatrix *currentMatrix;
             #ifdef DIFFERENT_MATRICES
-                matrixForThread = std::unique_ptr<IrredundantMatrix>(new IrredundantMatrix());
+                matrixForThread = std::unique_ptr<IrredundantMatrix>(new IrredundantMatrix(getFeatureWidth()));
                 currentMatrix = &*matrixForThread;
             #else
                 currentMatrix = &irredundantMatrix;
@@ -259,7 +259,7 @@ void InputMatrix::calculateMultiThreadWithOptimalPlanBuilding(IrredundantMatrix 
                 std::unique_ptr<IrredundantMatrix> matrixForThread;
                 IrredundantMatrix *currentMatrix;
                 #ifdef DIFFERENT_MATRICES
-                    matrixForThread = std::unique_ptr<IrredundantMatrix>(new IrredundantMatrix());
+                    matrixForThread = std::unique_ptr<IrredundantMatrix>(new IrredundantMatrix(_qColsCount));
                     currentMatrix = &*matrixForThread;
                 #else
                     currentMatrix = &irredundantMatrix;

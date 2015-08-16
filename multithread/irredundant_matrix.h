@@ -3,10 +3,9 @@
 
 #include <iostream>
 #include <mutex>
-
-#ifdef IRREDUNTANT_VECTOR
 #include <vector>
-#else
+
+#ifndef IRREDUNTANT_VECTOR
 #include <deque>
 #endif
 
@@ -16,10 +15,11 @@ class IrredundantMatrix
 {
 
 public:
-    IrredundantMatrix();
+    IrredundantMatrix(int width);
     void addRow(Row &&row, bool concurrent);
     void addMatrix(IrredundantMatrix&& matrix, bool concurrent);
     void printMatrix(std::ostream& stream);
+    void printR(std::ostream& stream);
 
     int getHeight();
     int getWidth();
@@ -29,12 +29,16 @@ public:
 
 private:
 
+    void addRowInternal(Row &&row);
+    
 #ifdef IRREDUNTANT_VECTOR
     std::vector<Row> _rows;
 #else
     std::deque<Row> _rows;
 #endif
 
+    int _width;
+    std::vector<int> _r;
     std::mutex _mutex;
 };
 

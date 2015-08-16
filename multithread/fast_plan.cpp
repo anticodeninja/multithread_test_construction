@@ -44,16 +44,16 @@ int FastPlan::FindNextStep(int begin, int end)
     }
 
     // Print
-#ifdef DEBUG_MODE
-    std::cout << "Fast plan: " << std::endl;
-    std::cout << begin << " " << median << " " << end << " | ";
+    DEBUG_BLOCK_START
+    getDebugStream() << "Fast plan: " << std::endl;
+    getDebugStream() << begin << " " << median << " " << end << " | ";
     for(auto i=0; i<_indexes.size(); ++i)
-        std::cout << _indexes[i] << " ";
-    std::cout << "| ";
+        getDebugStream() << _indexes[i] << " ";
+    getDebugStream() << "| ";
     for(auto i=0; i<_indexes.size(); ++i)
-        std::cout << _counts[_indexes[i]] << " ";
-    std::cout << "| " << (sum1 > sum2 ? sum1 - sum2 : sum2 - sum1) << std::endl;
-#endif
+        getDebugStream() << _counts[_indexes[i]] << " ";
+    getDebugStream() << "| " << (sum1 > sum2 ? sum1 - sum2 : sum2 - sum1) << std::endl;
+    DEBUG_BLOCK_END
 
     return median;
 }
