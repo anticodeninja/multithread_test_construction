@@ -12,6 +12,8 @@ class InputMatrix
 {
 
 public:
+    const int DASH = std::numeric_limits<int>::min();
+    
     InputMatrix(std::istream& input);
     ~InputMatrix();
 
@@ -35,6 +37,11 @@ public:
         return _qMatrix[i*_qColsCount + j];
     }
 
+    inline int getFeatureValuesCount(int j) const
+    {
+        return _qMaximum[j] - _qMinimum[j] + 1;
+    }
+
     inline int getFeatureWidth() const
     {
         return _qColsCount;
@@ -56,6 +63,7 @@ private:
     void calcR2Matrix();
     void sortMatrix();
     void calcR2Indexes();
+    void calcRVector(int* r, int row1, int row2);
 
 private:
 
@@ -64,6 +72,8 @@ private:
     int _rColsCount;
 
     int* _qMatrix;
+    int* _qMinimum;
+    int* _qMaximum;
     int* _rMatrix;
 
     int* _r2Matrix;

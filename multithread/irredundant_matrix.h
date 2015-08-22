@@ -16,7 +16,7 @@ class IrredundantMatrix
 
 public:
     IrredundantMatrix(int width);
-    void addRow(Row &&row, bool concurrent);
+    void addRow(Row&& row, int* r, bool concurrent);
     void addMatrix(IrredundantMatrix&& matrix, bool concurrent);
     void printMatrix(std::ostream& stream);
     void printR(std::ostream& stream);

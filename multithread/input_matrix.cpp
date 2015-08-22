@@ -21,9 +21,22 @@ InputMatrix::InputMatrix(std::istream& input)
 
         input >> _qColsCount;
         _qMatrix = new int[_rowsCount * _qColsCount];
+        _qMinimum = new int[_qColsCount];
+        _qMaximum = new int[_qColsCount];
+        for(auto j=0; j<_qColsCount; ++j) {
+            _qMinimum[j] = DASH;
+            _qMaximum[j] = DASH;
+        }
         for(auto i=0; i<_rowsCount; ++i) {
             for(auto j=0; j<_qColsCount; ++j) {
-                setFeature(i, j, parseValue(input));
+                auto value = parseValue(input);
+                setFeature(i, j, value);
+                if (value != DASH) {
+                    if (_qMinimum[j] == DASH || value < _qMinimum[j])
+                        _qMinimum[j] = value;
+                    if (_qMaximum[j] == DASH || _qMaximum[j] < value)
+                        _qMaximum[j] = value;
+                }
             }
         }
 
@@ -51,6 +64,8 @@ InputMatrix::~InputMatrix() {
     delete[] _rMatrix;
     delete[] _r2Matrix;
     delete[] _qMatrix;
+    delete[] _qMaximum;
+    delete[] _qMinimum;
     delete _planBuilder;
 }
 
@@ -90,6 +105,18 @@ void InputMatrix::printImageMatrix(std::ostream& stream) {
 void InputMatrix::printDebugInfo(std::ostream& stream) {
     COLLECT_TIME(Timers::WritingOutput)
 
+    stream << "qMinimum" << std::endl;
+    for(size_t i=0; i<_qColsCount; ++i) {
+        stream << _qMinimum[i] << " ";
+    }
+    stream << std::endl;
+
+    stream << "qMaximum" << std::endl;
+    for(size_t i=0; i<_qColsCount; ++i) {
+        stream << _qMaximum[i] << " ";
+    }
+    stream << std::endl;
+    
     stream << "# R2Indexes" << std::endl;
     for(size_t i=0; i<_r2Counts.size(); ++i) {
         stream << _r2Indexes[i] << " - " << _r2Counts[i] << std::endl;
@@ -101,7 +128,7 @@ int InputMatrix::parseValue(std::istream &stream)
     std::string buffer;
     stream >> buffer;
     if(buffer == "-")
-        return std::numeric_limits<int>::min();
+        return DASH;
     return stoi(buffer);
 }
 
@@ -309,9 +336,54 @@ void InputMatrix::processBlock(IrredundantMatrix &irredundantMatrix,
     for(auto i=0; i<length1; ++i) {
         for(auto j=0; j<length2; ++j) {
             COLLECT_TIME(Timers::QHandling);
-            irredundantMatrix.addRow(Row::createAsDifference(
-                                         WorkRow(_qMatrix, offset1+i, _qColsCount),
-                                         WorkRow(_qMatrix, offset2+j, _qColsCount)), concurrent);
+
+            auto diffRow = Row::createAsDifference(
+                                                   WorkRow(_qMatrix, offset1+i, _qColsCount),
+                                                   WorkRow(_qMatrix, offset2+j, _qColsCount));
+
+            int r[_qColsCount];
+            calcRVector(r, offset1+i, offset2+j);
+            
+            irredundantMatrix.addRow(std::move(diffRow), r, concurrent);
+        }
+    }
+}
+
+void InputMatrix::calcRVector(int* r, int row1, int row2) {
+    auto multiplier1 = 1;
+    auto multiplier2 = 1;            
+
+    for(auto k=0; k<_qColsCount; ++k) {
+        r[k] = 0;
+        if(getFeature(row1, k) == DASH) {
+            multiplier1 *= getFeatureValuesCount(k);
+        }
+        if(getFeature(row2, k) == DASH) {
+            multiplier2 *= getFeatureValuesCount(k);
+        }
+    }
+
+    auto calcLimits = [this](int row, int col) {
+        return getFeature(row, col) == DASH
+           ? std::tuple<int, int>(_qMinimum[col], _qMaximum[col])
+           : std::tuple<int, int>(getFeature(row, col), getFeature(row, col));
+    };
+    
+    for (auto k=0; k<_qColsCount; ++k) {
+        auto multiplier = multiplier1 * multiplier2;
+        if(getFeature(row1, k) == DASH) {
+            multiplier /= getFeatureValuesCount(k);
+        }
+        if(getFeature(row2, k) == DASH) {
+            multiplier /= getFeatureValuesCount(k);
+        }
+        
+        auto limit1 = calcLimits(row1, k);
+        for (auto i = std::get<0>(limit1); i <= std::get<1>(limit1); ++i) {
+            auto limit2 = calcLimits(row2, k);
+            for (auto j = std::get<0>(limit2); j <= std::get<1>(limit2); ++j) {
+                r[k] += std::abs(i - j) * multiplier;
+            }
         }
     }
 }

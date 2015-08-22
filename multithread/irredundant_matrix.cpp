@@ -9,7 +9,7 @@ IrredundantMatrix::IrredundantMatrix(int width)
     _r.resize(width);
 }
 
-void IrredundantMatrix::addRow(Row&& row, bool concurrent)
+void IrredundantMatrix::addRow(Row&& row, int* r, bool concurrent)
 {
     std::unique_lock<std::mutex> lock(_mutex, std::defer_lock);
     if(concurrent) {
@@ -18,7 +18,7 @@ void IrredundantMatrix::addRow(Row&& row, bool concurrent)
     }
     
     for(auto i=0; i<row.getWidth(); ++i) {
-        _r[i] += row.getValue(i);
+        _r[i] += r[i];
     }
     addRowInternal(std::move(row));
 }
