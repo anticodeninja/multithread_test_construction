@@ -286,7 +286,7 @@
     }
 
     window.onload = function() {
-        $.ajax("test_files.json").done(function(data){
+        $.ajax("enumerate_tests.json").done(function(data){
             self.config.files = data;
             init();
         });
