@@ -19,27 +19,22 @@ int main()
     debugLock = new std::mutex();
     printBuildFlags(getDebugStream());
 
-    #ifdef TIME_PROFILE
+#ifdef TIME_PROFILE
     TimeCollector::Initialize(static_cast<int>(Timers::TimeCollectorCount));
     TimeCollectorEntry all(static_cast<int>(Timers::All));
-    #endif
+#endif
 
     std::ifstream input_stream("input_data.txt");
     InputMatrix inputMatrix(input_stream);
 
-    #ifdef DEBUG_MODE
+#ifdef DEBUG_MODE
     inputMatrix.printFeatureMatrix(getDebugStream());
     inputMatrix.printImageMatrix(getDebugStream());
     inputMatrix.printDebugInfo(getDebugStream());
-    #endif
+#endif
 
     IrredundantMatrix irredundantMatrix(inputMatrix.getFeatureWidth());
-
-    #ifdef MULTITHREAD
-    inputMatrix.calculateMultiThreadWithOptimalPlanBuilding(irredundantMatrix);
-    #else
-    inputMatrix.calculateSingleThread(irredundantMatrix);
-    #endif
+    inputMatrix.calculate(irredundantMatrix);
 
     std::ofstream resultOutput("output_data.txt");
     irredundantMatrix.printMatrix(resultOutput);
@@ -53,9 +48,9 @@ int main()
     irredundantMatrix.printR(*debugOutput);
 #endif
 
-    #ifdef TIME_PROFILE
+#ifdef TIME_PROFILE
     all.Stop();
-    std::ofstream timeCollectorOutput("time_collector.txt");
+    std::ofstream timeCollectorOutput("current_profile.txt");
 
     std::map<int, std::string> names_string = {
             { (int)Timers::All, "All"},
@@ -74,7 +69,7 @@ int main()
     };
 
     TimeCollector::PrintInfo(timeCollectorOutput, names_string);
-    #endif
+#endif
 
     debugOutput->close();
     delete debugOutput;
@@ -86,25 +81,27 @@ int main()
 void printBuildFlags(std::ostream& debugOutput) {
     debugOutput << "# BuildFlags" << std::endl;
 
-    #ifdef IRREDUNDANT_VECTOR
+#ifdef IRREDUNDANT_VECTOR
     debugOutput << "- Irredundant Vector" << std::endl;
-    #endif
+#endif
 
-    #ifdef TIME_PROFILE
+#ifdef TIME_PROFILE
     debugOutput << "- Time Profile" << std::endl;
-    #endif
+#endif
 
-    #ifdef DIFFERENT_MATRICES
+#ifdef DIFFERENT_MATRICES
     debugOutput << "- Different Matrices" << std::endl;
-    #endif
+#endif
 
-    #ifdef DEBUG_MODE
+#ifdef DEBUG_MODE
     debugOutput << "- Debug Mode" << std::endl;
-    #endif
+#endif
 
-    #ifdef MULTITHREAD
-    debugOutput << "- MultiThread" << std::endl;
-    #endif
+#ifdef MULTITHREAD_DIVIDE2
+    debugOutput << "- MultiThread Divide 2 Algo" << std::endl;
+#elif MULTITHREAD_MASTERWORKER
+    debugOutput << "- MultiThread MasterWorker Algo" << std::endl;
+#endif
 }
 
 std::ostream& getDebugStream() {

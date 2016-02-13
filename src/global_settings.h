@@ -31,18 +31,15 @@ std::ostream& getDebugStream();
        debug_lock.lock();\
        getDebugStream() << args << std::endl;\
     }
-#define DEBUG_BLOCK_START\
+#define DEBUG_BLOCK(commands)\
     {\
        std::unique_lock<std::mutex> debug_lock(getDebugStreamLock(), std::defer_lock);\
-       debug_lock.lock();
-#define DEBUG_BLOCK_END\
+       debug_lock.lock();\
+       commands\
     }
 #else
 #define DEBUG_INFO(args);
-#define DEBUG_BLOCK_START\
-    if(false){
-#define DEBUG_BLOCK_END\
-    }
+#define DEBUG_BLOCK(commands);
 #endif
 
 #ifdef TIME_PROFILE
@@ -50,13 +47,6 @@ std::ostream& getDebugStream();
     TimeCollectorEntry __timeCollectorEntry(static_cast<int>(counter));
 #else
 #define COLLECT_TIME(counter);
-#endif
-
-#ifdef MULTITHREAD
-#define TAKE_LOCK(mutex_name)\
-    std::lock_guard<std::mutex> lock(mutex_name);
-#else
-#define TAKE_LOCK(mutex);
 #endif
 
 #endif // GLOBAL_SETTINGS_H

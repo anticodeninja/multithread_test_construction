@@ -81,7 +81,7 @@ class RunTestsContext(BuildContext):
 
             if self.env.PROFILING:
                 self.exec_command('cp %s %s' % (
-                    test_build_path.find_node('time_collector.txt').abspath(),
+                    test_build_path.find_node('current_profile.txt').abspath(),
                     self.bldnode.make_node('%s_profile.txt' % configuration['id']).abspath()))
          
 

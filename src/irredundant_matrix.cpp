@@ -17,24 +17,74 @@ void IrredundantMatrix::addRow(Row&& row, int* r, bool concurrent)
         lock.lock();
     }
     
-    for(auto i=0; i<row.getWidth(); ++i) {
+    for(auto i=0; i<_width; ++i) {
         _r[i] += r[i];
     }
+
     addRowInternal(std::move(row));
 }
 
-#ifdef IRREDUNTANT_VECTOR
-void IrredundantMatrix::addRowInternal(Row&& row)
+void IrredundantMatrix::clear(bool concurrent)
 {
-    COLLECT_TIME(Timers::RMerging);
+    std::unique_lock<std::mutex> lock(_mutex, std::defer_lock);
+    if(concurrent) {
+        COLLECT_TIME(Timers::CrossThreading);
+        lock.lock();
+    }
 
+    _rows.clear();
+    for(auto i=0; i<_width; ++i) {
+        _r[i] = 0;
+    }
+}
+
+void IrredundantMatrix::addMatrix(IrredundantMatrix &&matrix, bool concurrent)
+{
+    std::unique_lock<std::mutex> lock(_mutex, std::defer_lock);
+    if(concurrent) {
+        COLLECT_TIME(Timers::CrossThreading);
+        lock.lock();
+    }
+
+    for(auto i=matrix._rows.begin(); i!=matrix._rows.end(); ++i) {
+        addRowInternal(std::move(*i));
+    }
+    
+    DEBUG_BLOCK (
+       getDebugStream() << "Merge R" << std::endl;
+       for(auto i=0; i<matrix._r.size(); ++i) {
+           getDebugStream() << _r[i];        
+       }
+
+       getDebugStream() << "+" << std::endl;
+       for(auto i=0; i<matrix._r.size(); ++i) {
+           getDebugStream() << matrix._r[i];        
+       }
+
+       getDebugStream() << "=" << std::endl;
+       for(auto i=0; i<matrix._r.size(); ++i) {
+           getDebugStream() << (matrix._r[i] + _r[i]);
+       }
+    )
+
+    for(auto i=0; i<matrix._r.size(); ++i) {
+        _r[i] += matrix._r[i];
+    }
+}
+
+#ifdef IRREDUNTANT_VECTOR
+void IrredundantMatrix::addRowInternal(Row &&row) {
+    COLLECT_TIME(Timers::RMerging);
+    
     auto i = 0;
     while(i < _rows.size()) {
         if(_rows[i].isInclude(row)) {
+            DEBUG_INFO("-CB " << row << " | " << *i);
             return;
         }
         if(row.isInclude(_rows[i])) {
             if(i != (_rows.size() - 1)) {
+                DEBUG_INFO("-CE " << row << " | " << *i);
                 _rows[i] = std::move(_rows[_rows.size() - 1]);
             }
             _rows.pop_back();
@@ -42,13 +92,14 @@ void IrredundantMatrix::addRowInternal(Row&& row)
         }
         ++i;
     }
-
+    
+    DEBUG_INFO("-AR " << row);
     _rows.push_back(std::move(row));
 }
 #else
-void IrredundantMatrix::addRowInternal(Row&& row) {
+void IrredundantMatrix::addRowInternal(Row &&row) {
     COLLECT_TIME(Timers::RMerging);
-
+    
     auto i = _rows.begin();
     while(i != _rows.end()) {
         if(i->isInclude(row)) {
@@ -67,48 +118,6 @@ void IrredundantMatrix::addRowInternal(Row&& row) {
     _rows.push_back(std::move(row));
 }
 #endif
-
-void IrredundantMatrix::addMatrix(IrredundantMatrix &&matrix, bool concurrent)
-{
-    std::unique_lock<std::mutex> lock(_mutex, std::defer_lock);
-    if(concurrent) {
-        COLLECT_TIME(Timers::CrossThreading);
-        lock.lock();
-    }
-
-    for(auto i=matrix._rows.begin(); i!=matrix._rows.end(); ++i) {
-        addRowInternal(std::move(*i));
-    }
-    
-    DEBUG_BLOCK_START
-    DEBUG_INFO("Merge R");
-    for(auto i=0; i<matrix._r.size(); ++i) {
-        getDebugStream() << _r[i];        
-    }
-    DEBUG_INFO(std::endl << "+" << std::endl);
-    for(auto i=0; i<matrix._r.size(); ++i) {
-        getDebugStream() << matrix._r[i];        
-    }
-    DEBUG_INFO(std::endl << "=" << std::endl);
-    for(auto i=0; i<matrix._r.size(); ++i) {
-        getDebugStream() << (matrix._r[i] + _r[i]);
-    }
-    DEBUG_BLOCK_END
-
-    for(auto i=0; i<matrix._r.size(); ++i) {
-        _r[i] += matrix._r[i];
-    }
-}
-
-int IrredundantMatrix::getHeight()
-{
-    return _rows.size();
-}
-
-int IrredundantMatrix::getWidth()
-{
-    return _rows.size() != 0 ? _rows[0].getWidth() : 0;
-}
 
 void IrredundantMatrix::printMatrix(std::ostream &stream)
 {

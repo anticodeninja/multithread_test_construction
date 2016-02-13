@@ -1,16 +1,14 @@
-#ifndef FAST_PLAN_H
-#define FAST_PLAN_H
+#ifndef DIVIDE2_PLAN_H
+#define DIVIDE2_PLAN_H
 
 #include <vector>
 
-class FastPlan
+class Divide2Plan
 {
 public:
-    FastPlan(int* counts, int len);
-
+    Divide2Plan(int* counts, int len);
 
     int FindNextStep(int begin, int end);
-
 
     int GetIndex(int index) {
         return _indexes[index];
@@ -22,4 +20,4 @@ private:
     std::vector<int> _lastIndexes;
 };
 
-#endif // FAST_PLAN_H
+#endif // Divide2_PLAN_H

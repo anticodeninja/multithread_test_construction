@@ -21,11 +21,16 @@ def options(ctx):
                   default=False,
                   help='Use time-collector for profiling perfomance')
 
-   ctx.add_option('--mt', '--use-multithread',
-                  dest="use_multithread",
+   ctx.add_option('--mt-d2', '--use-multithread-divide-2',
+                  dest="use_multithread_divide_2",
                   action='store_true',
                   default=False,
-                  help='Use multithread realization of algorithm')
+                  help='Use multithread-divide-2 realization of algorithm')
+   ctx.add_option('--mt-mw', '--use-multithread-master-worker',
+                  dest="use_multithread_master_worker",
+                  action='store_true',
+                  default=False,
+                  help='Use multithread-master-worker realization of algorithm')
    ctx.add_option('--vm', '--use-vector-for-work-matrices',
                   dest="use_vector_for_work_matrices",
                   action='store_true',
@@ -60,8 +65,13 @@ def configure(ctx):
       ctx.env.PROFILING = True
       ctx.env.append_value('DEFINES', 'TIME_PROFILE')
       
-   if ctx.options.use_multithread:
-      ctx.env.append_value('DEFINES', 'MULTITHREAD')
+   if ctx.options.use_multithread_divide_2:
+      ctx.env.append_value('DEFINES', 'MULTITHREAD_DIVIDE2')
+
+   if ctx.options.use_multithread_master_worker:
+      ctx.env.append_value('DEFINES', 'MULTITHREAD_MASTERWORKER')
+
+   if any([ctx.options.use_multithread_divide_2, ctx.options.use_multithread_master_worker]):
       ctx.env.append_value('CXXFLAGS', '-pthread')
       ctx.env.append_value('LINKFLAGS', '-pthread')
       
@@ -94,17 +104,27 @@ def build(ctx):
 
 def debug(ctx):
    build(ctx)
+   ctx.add_group();
    ctx.run(True, 'multithread')
 
 def run_tests(ctx):
    ctx.run(
-      available_params = [ "use_multithread", "use_vector_for_work_matrices", "use_different_work_matrices" ],
+      available_params = [
+         "use_multithread_divide_2",
+         "use_multithread_master_worker",
+         "use_vector_for_work_matrices",
+         "use_different_work_matrices",
+      ],
       configurations = [
-         { "id": "mt-vm-dm-", "modules": [] },
-         { "id": "mt+vm-dm-", "modules": [ "use_multithread" ] },
-         { "id": "mt+vm+dm-", "modules": [ "use_multithread", "use_vector_for_work_matrices" ] },
-         { "id": "mt+vm-dm+", "modules": [ "use_multithread", "use_different_work_matrices" ] },
-         { "id": "mt+vm+dm+", "modules": [ "use_multithread", "use_different_work_matrices", "use_vector_for_work_matrices" ] },
+         { "id": "1_vanilla", "modules": [] },
+         { "id": "2_mt-d2", "modules": [ "use_multithread_divide_2" ] },
+         { "id": "3_mt-d2+vm", "modules": [ "use_multithread_divide_2", "use_vector_for_work_matrices" ] },
+         { "id": "4_mt-d2+dm", "modules": [ "use_multithread_divide_2", "use_different_work_matrices" ] },
+         { "id": "5_mt-d2+vm+dm", "modules": [ "use_multithread_divide_2", "use_different_work_matrices", "use_vector_for_work_matrices" ] },
+         { "id": "6_mt-mw", "modules": [ "use_multithread_master_worker" ] },
+         { "id": "7_mt-mw+vm", "modules": [ "use_multithread_master_worker", "use_vector_for_work_matrices" ] },
+         { "id": "8_mt-mw+dm", "modules": [ "use_multithread_master_worker", "use_different_work_matrices" ] },
+         { "id": "9_mt-mw+vm+dm", "modules": [ "use_multithread_master_worker", "use_different_work_matrices", "use_vector_for_work_matrices" ] },
       ]
    )
 

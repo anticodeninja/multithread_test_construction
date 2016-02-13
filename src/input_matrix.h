@@ -6,8 +6,6 @@
 
 #include "irredundant_matrix.h"
 
-class FastPlan;
-
 class InputMatrix
 {
 
@@ -23,8 +21,8 @@ public:
 
     void processBlock(IrredundantMatrix &irredundantMatrix,
                       int offset1, int length1, int offset2, int length2, bool concurrent);
-    void calculateSingleThread(IrredundantMatrix& irredundantMatrix);
-    void calculateMultiThreadWithOptimalPlanBuilding(IrredundantMatrix& irredundantMatrix);
+
+    void calculate(IrredundantMatrix& irredundantMatrix);
 
 public:
     inline void setFeature(int i, int j, int value)
@@ -65,6 +63,10 @@ private:
     void calcR2Indexes();
     void calcRVector(int* r, int row1, int row2);
 
+    void calcUseSingleThreadAlgo(IrredundantMatrix& irredundantMatrix);
+    void calcUseMultithreadDivide2Algo(IrredundantMatrix& irredundantMatrix);
+    void calcUseMultithreadMasterWorkerAlgo(IrredundantMatrix& irredundantMatrix);
+
 private:
 
     int _rowsCount;
@@ -81,7 +83,6 @@ private:
 
     std::vector<int> _r2Indexes;
     std::vector<int> _r2Counts;
-    FastPlan* _planBuilder;
 };
 
 #endif // INPUTMATRIX_H>

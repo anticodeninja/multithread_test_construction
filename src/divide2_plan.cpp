@@ -1,11 +1,11 @@
-#include "fast_plan.h"
+#include "divide2_plan.h"
 
 #include <iostream>
 #include <limits>
 
 #include "global_settings.h"
 
-FastPlan::FastPlan(int* counts, int len)
+Divide2Plan::Divide2Plan(int* counts, int len)
     : _counts(counts),
       _indexes(len),
       _lastIndexes(len)
@@ -15,7 +15,7 @@ FastPlan::FastPlan(int* counts, int len)
     }
 }
 
-int FastPlan::FindNextStep(int begin, int end)
+int Divide2Plan::FindNextStep(int begin, int end)
 {
     auto max = end - begin;
     auto len = max / 2;
@@ -43,17 +43,19 @@ int FastPlan::FindNextStep(int begin, int end)
         }
     }
 
-    // Print
-    DEBUG_BLOCK_START
-    getDebugStream() << "Fast plan: " << std::endl;
-    getDebugStream() << begin << " " << median << " " << end << " | ";
-    for(auto i=0; i<_indexes.size(); ++i)
-        getDebugStream() << _indexes[i] << " ";
-    getDebugStream() << "| ";
-    for(auto i=0; i<_indexes.size(); ++i)
-        getDebugStream() << _counts[_indexes[i]] << " ";
-    getDebugStream() << "| " << (sum1 > sum2 ? sum1 - sum2 : sum2 - sum1) << std::endl;
-    DEBUG_BLOCK_END
+    DEBUG_BLOCK (
+       getDebugStream() << "Divide2Plan: " << std::endl;
+       
+       getDebugStream() << begin << " " << median << " " << end << " | ";
+       for(auto i=0; i<_indexes.size(); ++i)
+           getDebugStream() << _indexes[i] << " ";
+       
+       getDebugStream() << "| ";
+       for(auto i=0; i<_indexes.size(); ++i)
+           getDebugStream() << _counts[_indexes[i]] << " ";
+       
+       getDebugStream() << "| " << (sum1 > sum2 ? sum1 - sum2 : sum2 - sum1) << std::endl;
+    )
 
     return median;
 }

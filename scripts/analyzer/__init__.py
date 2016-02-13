@@ -20,7 +20,6 @@ class AnalyzerRequestHandler(http.server.BaseHTTPRequestHandler):
             if path == "enumerate_tests.json":
                 tests = [x for x in os.listdir(self.result_path) if x.endswith('_profile.txt')]
                 tests.sort()
-                tests.reverse()
                 data = json.dumps(tests).encode('utf-8')
             else:
                 res_path = os.path.join(self.result_path, path)

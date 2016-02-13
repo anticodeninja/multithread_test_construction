@@ -42,7 +42,7 @@ void TimeCollector::Initialize(int reserve)
 
 void TimeCollector::AddToTimeCollector(const TimeCollectorEntry &entry)
 {
-    TAKE_LOCK(_mutex);
+    std::lock_guard<std::mutex> lock(_mutex);
     _timeCollectors.push_back(TimeBaseEntry(entry.getState(), entry.getThreadId(),
                                             entry.getStartTime(), entry.getEndTime()));
 }

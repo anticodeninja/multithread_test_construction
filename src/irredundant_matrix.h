@@ -18,11 +18,17 @@ public:
     IrredundantMatrix(int width);
     void addRow(Row&& row, int* r, bool concurrent);
     void addMatrix(IrredundantMatrix&& matrix, bool concurrent);
+    void clear(bool concurrent);
     void printMatrix(std::ostream& stream);
     void printR(std::ostream& stream);
 
-    int getHeight();
-    int getWidth();
+    int getHeight() const {
+        return _rows.size();
+    }
+    
+    int getWidth() const {
+        return _width;
+    }
 
     IrredundantMatrix(IrredundantMatrix& matrix) = delete;
     IrredundantMatrix& operator=(IrredundantMatrix& matrix) = delete;
