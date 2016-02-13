@@ -11,3 +11,9 @@ html, body {
 canvas {
     display:block;
 }
+
+#stat {
+    position: fixed;
+    top: 0;
+    left: 0;
+}

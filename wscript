@@ -100,11 +100,11 @@ def run_tests(ctx):
    ctx.run(
       available_params = [ "use_multithread", "use_vector_for_work_matrices", "use_different_work_matrices" ],
       configurations = [
-         { "id": "vanilla", "modules": [] },
-         { "id": "mt", "modules": [ "use_multithread" ] },
-         { "id": "mt+vm", "modules": [ "use_multithread", "use_vector_for_work_matrices" ] },
-         { "id": "mt+dm", "modules": [ "use_multithread", "use_different_work_matrices" ] },
-         { "id": "mt+vm+dm", "modules": [ "use_multithread", "use_different_work_matrices", "use_vector_for_work_matrices" ] },
+         { "id": "mt-vm-dm-", "modules": [] },
+         { "id": "mt+vm-dm-", "modules": [ "use_multithread" ] },
+         { "id": "mt+vm+dm-", "modules": [ "use_multithread", "use_vector_for_work_matrices" ] },
+         { "id": "mt+vm-dm+", "modules": [ "use_multithread", "use_different_work_matrices" ] },
+         { "id": "mt+vm+dm+", "modules": [ "use_multithread", "use_different_work_matrices", "use_vector_for_work_matrices" ] },
       ]
    )
 

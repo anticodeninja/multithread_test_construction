@@ -61,7 +61,7 @@ class RunTestsContext(BuildContext):
     fun = 'run_tests'
 
     def run(self, available_params, configurations):
-        test_build_path = self.path.find_node(self.bldnode.name + '_tests')
+        test_build_path = self.path.make_node(self.bldnode.name + '_tests')
        
         Options.lockfile = Options.lockfile + '_tests'
         Options.options.out = test_build_path.abspath()
@@ -76,6 +76,7 @@ class RunTestsContext(BuildContext):
             Logs.pprint('PINK', 'Testing %s build...' % configuration['id'])
       
             Scripting.run_command('configure')
+            Scripting.run_command('build')
             Scripting.run_command('debug')
 
             if self.env.PROFILING:

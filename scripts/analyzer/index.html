@@ -1,12 +1,19 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <link rel="stylesheet" type="text/css" href="multithread-cogn.css">
+    <link rel="stylesheet" type="text/css" href="analyzer.css">
     <script defer type="text/javascript" src="underscore.js"></script>
     <script defer type="text/javascript" src="jquery-2.1.4.min.js"></script>
-    <script defer type="text/javascript" src="multithread-cogn.js"></script>
+    <script defer type="text/javascript" src="analyzer.js"></script>
+    <script id="cache" type="text/javascript"></script>
 </head>
 <body>
-<canvas id="myCanvas" width="200" height="100"></canvas>
+  <canvas id="myCanvas" width="200" height="100"></canvas>
+  <div id="stat">
+    <p>Id: <span class="id"></span></p>
+    <p>Work Time: <span class="work-time"></span></p>
+    <p>Threads Count: <span class="threads-count"></span></p>
+    <p>Threads Sync Time: <span class="threads-sync-time"></span></p>
+  </div>
 </body>
 </html>

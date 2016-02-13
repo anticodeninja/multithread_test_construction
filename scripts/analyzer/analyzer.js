@@ -27,8 +27,7 @@
                 "Threading": {c: "#0966B4", h: 1},
 
                 "Unknown": {c: "#F00", h: 1}
-            },
-            files: []
+            }
         },
         viewPort: {
             x: 0,
@@ -48,9 +47,14 @@
         primitivies: [
 
         ],
+        
         tmp: {},
         data: {},
-        cache: {}
+
+        cached: !!window.tests,
+        tests: window.tests || [],
+        cache: window.cache || {},
+        
         };
 
 
@@ -71,6 +75,20 @@
         self.viewPort.yBounds = zoomedHeight > self.canvas.height
             ? {min: 0, max: zoomedHeight - self.canvas.height}
             : {min: zoomedHeight - self.canvas.height, max: 0};
+    }
+
+    function updateStat(filename, worktime, threadsCount, threadsSyncTime)
+    {
+        document.querySelector("#stat .id").innerText = filename;
+        document.querySelector("#stat .work-time").innerText = worktime;
+        document.querySelector("#stat .threads-count").innerText = threadsCount;
+        document.querySelector("#stat .threads-sync-time").innerText = threadsSyncTime;
+    }
+
+    function updateCache() {
+        document.querySelector("#cache").innerHTML =
+            "window.tests = " + JSON.stringify(self.tests) +";\n" +
+            "window.cache = " + JSON.stringify(self.cache) +";\n";
     }
 
     function checkViewPortBounds() {
@@ -183,6 +201,7 @@
                 endTime,
                 maxThreadId = 0,
                 maxTime = 0,
+                threadsSyncTime = 0,
                 transformX = function (value) {
                     return value * koefX;
                 },
@@ -202,15 +221,19 @@
                 endTime = parseInt(parsedLine[3]);
                 params = self.config.params[type] || self.config.params["Unknown"];
 
-                if(threadId > maxThreadId) {
+                if (threadId > maxThreadId) {
                     maxThreadId = threadId;
                 }
 
-                if(endTime > maxTime) {
+                if (endTime > maxTime) {
                     maxTime = endTime;
                 }
 
-                if(params.h == 0) {
+                if (type == "CrossThreading") {
+                    threadsSyncTime += endTime - startTime;
+                }
+
+                if (params.h == 0) {
                     continue;
                 }
 
@@ -223,30 +246,26 @@
                     height: params.h * koefY
                 });
             }
-
-            console.log(maxTime, maxThreadId);
+            
             self.area.width = transformX(maxTime);
             self.area.height = transformY(maxThreadId);
+
+            updateStat(self.tests[self.data.currentIndex], maxTime, maxThreadId, threadsSyncTime);
+            updateViewPortBounds();
         };
 
-        if(index < 0 || index >= self.config.files.length){
+        if(index < 0 || index >= self.tests.length){
             return;
         }
 
-        if (index == self.data.currentIndex) {
-            if (self.config.files.length == 1) {
-                delete self.cache[self.data.currentIndex];
-            } else {
-                return;
-            }
-        }
         self.data.currentIndex = index;
 
         if(self.cache[self.data.currentIndex] != undefined) {
             parseFile(self.cache[self.data.currentIndex]);
-        } else {
-            $.ajax(self.config.files[self.data.currentIndex]).done(function(data){
+        } else if (!self.cached) {
+            $.ajax(self.tests[self.data.currentIndex]).done(function(data){
                 self.cache[self.data.currentIndex] = data;
+                updateCache();
                 parseFile(data);
             });
         }
@@ -286,8 +305,14 @@
     }
 
     window.onload = function() {
+        if (self.cached) {
+            init();
+            return;
+        }
+        
         $.ajax("enumerate_tests.json").done(function(data){
-            self.config.files = data;
+            self.tests = data;
+            updateCache();
             init();
         });
     }
