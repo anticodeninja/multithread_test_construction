@@ -252,6 +252,7 @@
 
             updateStat(self.tests[self.data.currentIndex], maxTime, maxThreadId, threadsSyncTime);
             updateViewPortBounds();
+            render();
         };
 
         if(index < 0 || index >= self.tests.length){

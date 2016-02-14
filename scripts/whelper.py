@@ -65,7 +65,7 @@ class RunTestsContext(BuildContext):
        
         Options.lockfile = Options.lockfile + '_tests'
         Options.options.out = test_build_path.abspath()
-        Options.options.profiling = self.env.PROFILING
+        Options.options.profiling = True
         Options.options.input_file = os.path.relpath(self.env.INPUT_FILE, self.path.abspath())
         Options.options.reference_file = os.path.relpath(self.env.REFERENCE_FILE, self.path.abspath())
 
@@ -79,10 +79,9 @@ class RunTestsContext(BuildContext):
             Scripting.run_command('build')
             Scripting.run_command('debug')
 
-            if self.env.PROFILING:
-                self.exec_command('cp %s %s' % (
-                    test_build_path.find_node('current_profile.txt').abspath(),
-                    self.bldnode.make_node('%s_profile.txt' % configuration['id']).abspath()))
+            self.exec_command('cp %s %s' % (
+                test_build_path.find_node('current_profile.txt').abspath(),
+                self.bldnode.make_node('%s_profile.txt' % configuration['id']).abspath()))
          
 
         Scripting.run_command('distclean')

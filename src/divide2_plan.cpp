@@ -6,56 +6,66 @@
 #include "global_settings.h"
 
 Divide2Plan::Divide2Plan(int* counts, int len)
-    : _counts(counts),
-      _indexes(len),
-      _lastIndexes(len)
-{
-    for(auto i=0; i<len; ++i) {
-        _indexes[i] = i;
+{    
+    auto step = 0;
+    _tasks.push_back(std::vector<Divide2Task>());
+    _tasks[step].push_back(Divide2Task());
+
+    auto& task0 = _tasks[step][0];
+    for (auto i=0; i<len; ++i) {
+        task0.append(i, counts[i]);
     }
-}
+    
+    for (;;) {
+        auto hasFuture = false;
+        _tasks.push_back(std::vector<Divide2Task>());
 
-int Divide2Plan::FindNextStep(int begin, int end)
-{
-    auto max = end - begin;
-    auto len = max / 2;
-    auto median = begin + len;
+        step += 1;
+        for (auto chunk=0; chunk < 1 << (step - 1); ++chunk) {
+            auto& parent = _tasks[step - 1][chunk];
+                
+            _tasks[step].push_back(Divide2Task());
+            _tasks[step].push_back(Divide2Task());
+            
+            auto& task1 = _tasks[step][2*chunk+0];
+            for (auto i=0; i<parent.getFirstSize(); ++i) {
+                task1.append(parent.getFirst(i), counts[parent.getFirst(i)]);
+            }
 
-    auto p = 0;
-    for(auto i = begin; i <= end; ++i) {
-        _lastIndexes[i] = _indexes[i];
-    }
+            auto& task2 = _tasks[step][2*chunk+1];
+            for (auto i=0; i<parent.getSecondSize(); ++i) {
+                task2.append(parent.getSecond(i), counts[parent.getSecond(i)]);
+            }
 
-    auto sum1 = 0;
-    auto index1 = begin;
-    auto sum2 = 0;
-    auto index2 = median + 1;
+            hasFuture = hasFuture || !task1.isEmpty() || !task2.isEmpty();
+        }
 
-    for(auto i = begin; i <= end; ++i) {
-        if(sum1 <= sum2 || index2 == end + 1) {
-            sum1 += _counts[_lastIndexes[i]];
-            _indexes[index1] = _lastIndexes[i];
-            index1 += 1;
-        } else {
-            sum2 += _counts[_lastIndexes[i]];
-            _indexes[index2] = _lastIndexes[i];
-            index2 += 1;
+        if (!hasFuture) {
+            break;
         }
     }
+
+    _steps = step + 1;
 
     DEBUG_BLOCK (
        getDebugStream() << "Divide2Plan: " << std::endl;
        
-       getDebugStream() << begin << " " << median << " " << end << " | ";
-       for(auto i=0; i<_indexes.size(); ++i)
-           getDebugStream() << _indexes[i] << " ";
-       
-       getDebugStream() << "| ";
-       for(auto i=0; i<_indexes.size(); ++i)
-           getDebugStream() << _counts[_indexes[i]] << " ";
-       
-       getDebugStream() << "| " << (sum1 > sum2 ? sum1 - sum2 : sum2 - sum1) << std::endl;
-    )
+       for (auto step = 0; step < _steps; ++step) {
+           getDebugStream() << step << "| ";
+           for (auto chunk=0; chunk < _tasks[step].size(); ++chunk) {
+               for (auto i = 0; i < _tasks[step][chunk].getFirstSize(); ++i) {
+                   getDebugStream() << _tasks[step][chunk].getFirst(i) << " ";
+               }
+               
+               getDebugStream() << "- ";
 
-    return median;
+               for (auto i = 0; i < _tasks[step][chunk].getSecondSize(); ++i) {
+                   getDebugStream() << _tasks[step][chunk].getSecond(i) << " ";
+               }
+
+               getDebugStream() << "| ";
+           }
+           getDebugStream() << std::endl;
+       }
+    )
 }

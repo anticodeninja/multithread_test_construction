@@ -231,89 +231,53 @@ void InputMatrix::sortMatrix() {
 
 void InputMatrix::calculate(IrredundantMatrix &irredundantMatrix)
 {
-    auto threadRang = 1;
-    auto indexesCount = 0;
-    for(; _r2Count / 2 > 1 << (threadRang - 1); ++threadRang);
-    for(auto i=0; i<=threadRang; ++i) indexesCount += 1 << i;
-    auto maxThreads = 1 << threadRang;
-
-    DEBUG_INFO("ThreadRang: " << threadRang);
-    DEBUG_INFO("IndexesCount: " << indexesCount);
-    DEBUG_INFO("MaxThreads: " << maxThreads);
-
-    std::vector<int> indexes(3 * indexesCount);
-    std::vector<std::thread> threads(maxThreads);
-    
-    auto setBegin = [&indexes](int id, int value) {indexes[3*id + 0] = value;};
-    auto getBegin = [&indexes](int id) {return indexes[3*id + 0];};
-    auto setMedian = [&indexes](int id, int value) {indexes[3*id + 1] = value;};
-    auto getMedian = [&indexes](int id) {return indexes[3*id + 1];};
-    auto setEnd = [&indexes](int id, int value) {indexes[3*id + 2] = value;};
-    auto getEnd = [&indexes](int id) {return indexes[3*id + 2];};
-
     Divide2Plan planBuilder(_r2Counts.data(), _r2Counts.size());
-    setBegin(0, 0);
-    setEnd(0, _r2Count - 1);
+    std::vector<std::thread> threads(planBuilder.getMaxThreadsCount());
 
-    auto stepBaseIndex = 0;
-    for(auto rang=0; rang<=threadRang; ++rang) {
-        auto threadForStep = 1 << rang;
-        DEBUG_INFO("Step: " << (rang+1) << ", ThreadForStep: " << threadForStep);
+    for(auto step = 0; step < planBuilder.getStepsCount(); ++step) {
+        DEBUG_INFO("Step: " << step);
 
-        for(auto j=0; j<threadForStep; ++j) {
-            auto id = stepBaseIndex + j;
+        for(auto threadId = 0; threadId < planBuilder.getThreadsCountForStep(step); ++threadId) {
             COLLECT_TIME(Timers::Threading);
-            threads[j] = std::thread([this, rang, id, threadRang,
-                                      &planBuilder,
-                                      &irredundantMatrix, &indexes,
-                                      &setBegin, &setMedian, &setEnd,
-                                      &getBegin, &getMedian, &getEnd]()
+            threads[threadId] = std::thread([this, step, threadId, &irredundantMatrix, &planBuilder]()
             {
                 #ifdef DIFFERENT_MATRICES
-                auto matrixForThread = std::unique_ptr<IrredundantMatrix>(new IrredundantMatrix(_qColsCount));
-                auto currentMatrix = &*matrixForThread;
+                IrredundantMatrix matrixForThread(_qColsCount);
+                auto currentMatrix = &matrixForThread;
                 auto concurrent = false;
                 #else
                 auto currentMatrix = &irredundantMatrix;
                 auto concurrent = true;
                 #endif
 
-                DEBUG_INFO("Work on step: " << id <<
-                           ", begin: " << getBegin(id) << ", end: " << getEnd(id));
+                auto task = planBuilder.getTask(step, threadId);
 
-                if(getBegin(id) != getEnd(id)) {
-                    {
-                        COLLECT_TIME(Timers::PlanBuilding);
-                        setMedian(id, planBuilder.FindNextStep(getBegin(id), getEnd(id)));
-                    }
+                if (task->isEmpty()) {
+                    DEBUG_INFO("Thread " << threadId << " stopped");
+                    return;
+                }
 
-                    for(auto i=getBegin(id); i<=getMedian(id); ++i) {
-                        for(auto j=getMedian(id)+1; j<=getEnd(id); ++j) {
-                            processBlock(*currentMatrix,
-                                         _r2Indexes[planBuilder.GetIndex(i)], _r2Counts[planBuilder.GetIndex(i)],
-                                         _r2Indexes[planBuilder.GetIndex(j)], _r2Counts[planBuilder.GetIndex(j)],
-                                    concurrent);
-                        }
-                    }
+                DEBUG_INFO("Thread " << threadId << " is working on " <<
+                           task->getFirstSize() << ":" << task->getSecondSize());
 
-                    if(rang != threadRang) {
-                        setBegin(2*id + 1, getBegin(id));
-                        setEnd(2*id + 1, getMedian(id));
-                        setBegin(2*id + 2, getMedian(id) + 1);
-                        setEnd(2*id + 2, getEnd(id));
+                for(auto i=0; i<task->getFirstSize(); ++i) {
+                    for(auto j=0; j<task->getSecondSize(); ++j) {
+                        processBlock(*currentMatrix,
+                                     _r2Indexes[task->getFirst(i)], _r2Counts[task->getFirst(i)],
+                                     _r2Indexes[task->getSecond(j)], _r2Counts[task->getSecond(j)],
+                                     concurrent);
                     }
                 }
 
                 #ifdef DIFFERENT_MATRICES
-                irredundantMatrix.addMatrix(std::move(*matrixForThread), true);
+                irredundantMatrix.addMatrix(std::move(matrixForThread), true);
                 #endif
             });
         }
-        for(auto j=0; j<threadForStep; ++j) {
-            threads[j].join();
+        
+        for(auto threadId = 0; threadId < planBuilder.getThreadsCountForStep(step); ++threadId) {
+            threads[threadId].join();
         }
-
-        stepBaseIndex += threadForStep;
     }
 }
 
@@ -377,19 +341,23 @@ void InputMatrix::calculate(IrredundantMatrix &irredundantMatrix)
 #else
 
 void InputMatrix::calculate(IrredundantMatrix &irredundantMatrix) {
+    #ifdef DIFFERENT_MATRICES
+    IrredundantMatrix matrixForThread IrredundantMatrix(getFeatureWidth());
+    auto currentMatrix = &matrixForThread;
+    #else
+    auto currentMatrix = &irredundantMatrix;
+    #endif
+            
     for(size_t i=0; i<_r2Indexes.size()-1; ++i) {
         for(size_t j=i+1; j<_r2Indexes.size(); ++j) {
             #ifdef DIFFERENT_MATRICES
-            auto matrixForThread = std::unique_ptr<IrredundantMatrix>(new IrredundantMatrix(getFeatureWidth()));
-            auto currentMatrix = &*matrixForThread;
-            #else
-            auto currentMatrix = &irredundantMatrix;
+            matrixForThread.clear()
             #endif
 
             processBlock(*currentMatrix, _r2Indexes[i], _r2Counts[i], _r2Indexes[j], _r2Counts[j], false);
 
             #ifdef DIFFERENT_MATRICES
-            irredundantMatrix.addMatrix(std::move(*matrixForThread), false);
+            irredundantMatrix.addMatrix(std::move(matrixForThread), false);
             #endif
         }
     }
