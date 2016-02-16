@@ -49,4 +49,12 @@ std::ostream& getDebugStream();
 #define COLLECT_TIME(counter);
 #endif
 
+#ifdef MULTITHREAD_DIVIDE2
+#define MULTITHREAD
+#endif
+
+#ifdef MULTITHREAD_MASTERWORKER
+#define MULTITHREAD
+#endif
+
 #endif // GLOBAL_SETTINGS_H

@@ -41,6 +41,11 @@ def options(ctx):
                   action='store_true',
                   default=False,
                   help='Use different work matrices for merging')
+   ctx.add_option('--ll', '--use-local-lock',
+                  dest="use_local_lock",
+                  action='store_true',
+                  default=False,
+                  help='Use local-lock for row merging')
 
    ctx.add_option('--input-file',
                   dest="input_file",
@@ -81,6 +86,9 @@ def configure(ctx):
    if ctx.options.use_different_work_matrices:
       ctx.env.append_value('DEFINES', 'DIFFERENT_MATRICES')
 
+   if ctx.options.use_local_lock:
+      ctx.env.append_value('DEFINES', 'USE_LOCAL_LOCK')
+
    if ctx.options.input_file:
       input_file = ctx.path.find_resource(ctx.options.input_file)
       if not input_file:
@@ -114,6 +122,7 @@ def run_tests(ctx):
          "use_multithread_master_worker",
          "use_vector_for_work_matrices",
          "use_different_work_matrices",
+         "use_local_lock",
       ],
       configurations = [
          { "id": "1_vanilla", "modules": [] },
@@ -121,10 +130,9 @@ def run_tests(ctx):
          { "id": "3_mt-d2+vm", "modules": [ "use_multithread_divide_2", "use_vector_for_work_matrices" ] },
          { "id": "4_mt-d2+dm", "modules": [ "use_multithread_divide_2", "use_different_work_matrices" ] },
          { "id": "5_mt-d2+vm+dm", "modules": [ "use_multithread_divide_2", "use_different_work_matrices", "use_vector_for_work_matrices" ] },
-         { "id": "6_mt-mw", "modules": [ "use_multithread_master_worker" ] },
-         { "id": "7_mt-mw+vm", "modules": [ "use_multithread_master_worker", "use_vector_for_work_matrices" ] },
-         { "id": "8_mt-mw+dm", "modules": [ "use_multithread_master_worker", "use_different_work_matrices" ] },
-         { "id": "9_mt-mw+vm+dm", "modules": [ "use_multithread_master_worker", "use_different_work_matrices", "use_vector_for_work_matrices" ] },
+         { "id": "6_mt-d2+ll", "modules": [ "use_multithread_divide_2", "use_local_lock" ] },
+         { "id": "7_mt-mw", "modules": [ "use_multithread_master_worker" ] },
+         { "id": "8_mt-mw+ll", "modules": [ "use_multithread_master_worker", "use_local_lock" ] },
       ]
    )
 

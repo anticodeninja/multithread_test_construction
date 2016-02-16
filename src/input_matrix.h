@@ -20,7 +20,7 @@ public:
     void printDebugInfo(std::ostream &stream);
 
     void processBlock(IrredundantMatrix &irredundantMatrix,
-                      int offset1, int length1, int offset2, int length2, bool concurrent);
+                      int offset1, int length1, int offset2, int length2);
 
     void calculate(IrredundantMatrix& irredundantMatrix);
 

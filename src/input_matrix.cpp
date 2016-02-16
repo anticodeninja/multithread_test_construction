@@ -18,6 +18,12 @@
 #include "masterworker_plan.h"
 #endif
 
+#ifdef MULTITHREAD
+#ifndef DIFFERENT_MATRICES
+#define ADD_ROW_CONCURRENT
+#endif
+#endif
+
 InputMatrix::InputMatrix(std::istream& input)
 {
     {
@@ -244,10 +250,8 @@ void InputMatrix::calculate(IrredundantMatrix &irredundantMatrix)
                 #ifdef DIFFERENT_MATRICES
                 IrredundantMatrix matrixForThread(_qColsCount);
                 auto currentMatrix = &matrixForThread;
-                auto concurrent = false;
                 #else
                 auto currentMatrix = &irredundantMatrix;
-                auto concurrent = true;
                 #endif
 
                 auto task = planBuilder.getTask(step, threadId);
@@ -264,13 +268,12 @@ void InputMatrix::calculate(IrredundantMatrix &irredundantMatrix)
                     for(auto j=0; j<task->getSecondSize(); ++j) {
                         processBlock(*currentMatrix,
                                      _r2Indexes[task->getFirst(i)], _r2Counts[task->getFirst(i)],
-                                     _r2Indexes[task->getSecond(j)], _r2Counts[task->getSecond(j)],
-                                     concurrent);
+                                     _r2Indexes[task->getSecond(j)], _r2Counts[task->getSecond(j)]);
                     }
                 }
 
                 #ifdef DIFFERENT_MATRICES
-                irredundantMatrix.addMatrix(std::move(matrixForThread), true);
+                irredundantMatrix.addMatrixConcurrent(std::move(matrixForThread));
                 #endif
             });
         }
@@ -285,7 +288,7 @@ void InputMatrix::calculate(IrredundantMatrix &irredundantMatrix)
 
 void InputMatrix::calculate(IrredundantMatrix &irredundantMatrix)
 {
-    auto maxThreads  = std::thread::hardware_concurrency();;
+    auto maxThreads = std::thread::hardware_concurrency();;
 
     DEBUG_INFO("MaxThreads: " << maxThreads);
 
@@ -300,10 +303,8 @@ void InputMatrix::calculate(IrredundantMatrix &irredundantMatrix)
             #ifdef DIFFERENT_MATRICES
             IrredundantMatrix matrixForThread(_qColsCount);
             auto currentMatrix = &matrixForThread;
-            auto concurrent = false;
             #else
             auto currentMatrix = &irredundantMatrix;
-            auto concurrent = true;
             #endif
 
             DEBUG_INFO("Thread " << threadId << " started");
@@ -318,16 +319,15 @@ void InputMatrix::calculate(IrredundantMatrix &irredundantMatrix)
                 DEBUG_INFO("Thread " << threadId << " is working on " << task->getFirst() << ":" << task->getSecond());
 
                 #ifdef DIFFERENT_MATRICES
-                matrixForThread.clear(false);
+                matrixForThread.clear();
                 #endif
  
                 processBlock(*currentMatrix,
                              _r2Indexes[task->getFirst()], _r2Counts[task->getFirst()],
-                             _r2Indexes[task->getSecond()], _r2Counts[task->getSecond()],
-                             concurrent);
+                             _r2Indexes[task->getSecond()], _r2Counts[task->getSecond()]);
 
                 #ifdef DIFFERENT_MATRICES
-                irredundantMatrix.addMatrix(std::move(matrixForThread), true);
+                irredundantMatrix.addMatrixConcurrent(std::move(matrixForThread));
                 #endif
             }
         });
@@ -354,10 +354,10 @@ void InputMatrix::calculate(IrredundantMatrix &irredundantMatrix) {
             matrixForThread.clear()
             #endif
 
-            processBlock(*currentMatrix, _r2Indexes[i], _r2Counts[i], _r2Indexes[j], _r2Counts[j], false);
+            processBlock(*currentMatrix, _r2Indexes[i], _r2Counts[i], _r2Indexes[j], _r2Counts[j]);
 
             #ifdef DIFFERENT_MATRICES
-            irredundantMatrix.addMatrix(std::move(matrixForThread), false);
+            irredundantMatrix.addMatrixConcurrent(std::move(matrixForThread));
             #endif
         }
     }
@@ -366,7 +366,7 @@ void InputMatrix::calculate(IrredundantMatrix &irredundantMatrix) {
 #endif
 
 void InputMatrix::processBlock(IrredundantMatrix &irredundantMatrix,
-                               int offset1, int length1, int offset2, int length2, bool concurrent) {
+                               int offset1, int length1, int offset2, int length2) {
     for(auto i=0; i<length1; ++i) {
         for(auto j=0; j<length2; ++j) {
             COLLECT_TIME(Timers::QHandling);
@@ -377,8 +377,12 @@ void InputMatrix::processBlock(IrredundantMatrix &irredundantMatrix,
 
             int r[_qColsCount];
             calcRVector(r, offset1+i, offset2+j);
-            
-            irredundantMatrix.addRow(std::move(diffRow), r, concurrent);
+
+            #ifdef ADD_ROW_CONCURRENT
+            irredundantMatrix.addRowConcurrent(std::move(diffRow), r);
+            #else
+            irredundantMatrix.addRow(std::move(diffRow), r);
+            #endif
         }
     }
 }
