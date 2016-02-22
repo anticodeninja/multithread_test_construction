@@ -51,8 +51,8 @@ void IrredundantMatrix::addMatrixConcurrent(IrredundantMatrix &&matrix)
     }
     _rSync.clear(std::memory_order_release);  
 
-    for(auto current = _head.next; current != nullptr; current = current->next) {
-        addRowInternal(std::move(current->data));    
+    for(auto current = matrix._head.next; current != nullptr; current = current->next) {
+        addRowInternal(std::move(current->data));
     }
 }
 

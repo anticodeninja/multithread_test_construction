@@ -65,7 +65,7 @@ class RunTestsContext(BuildContext):
        
         Options.lockfile = Options.lockfile + '_tests'
         Options.options.out = test_build_path.abspath()
-        Options.options.profiling = True
+        Options.options.profiling = self.env.profiling
         Options.options.input_file = os.path.relpath(self.env.INPUT_FILE, self.path.abspath())
         Options.options.reference_file = os.path.relpath(self.env.REFERENCE_FILE, self.path.abspath())
 

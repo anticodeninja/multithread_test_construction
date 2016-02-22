@@ -67,6 +67,7 @@ def configure(ctx):
       ctx.env.append_value('CXXFLAGS', '-O2')
       
    if ctx.options.profiling:
+      ctx.env.profiling = ctx.options.profiling
       ctx.env.append_value('DEFINES', 'TIME_PROFILE=%d' % ctx.options.profiling)
       
    if ctx.options.use_multithread_divide_2:
@@ -132,6 +133,8 @@ def run_tests(ctx):
          { "id": "6_mt-d2+ll", "modules": [ "use_multithread_divide_2", "use_local_lock" ] },
          { "id": "7_mt-mw", "modules": [ "use_multithread_master_worker" ] },
          { "id": "8_mt-mw+ll", "modules": [ "use_multithread_master_worker", "use_local_lock" ] },
+         { "id": "7_mt-mw", "modules": [ "use_multithread_master_worker" ] },
+         { "id": "9_mt-mw+ll+dm", "modules": [ "use_multithread_master_worker", "use_local_lock", "use_different_work_matrices" ] },
       ]
    )
 
