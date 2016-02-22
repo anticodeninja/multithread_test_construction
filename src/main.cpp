@@ -19,10 +19,8 @@ int main()
     debugLock = new std::mutex();
     printBuildFlags(getDebugStream());
 
-#ifdef TIME_PROFILE
-    TimeCollector::Initialize(static_cast<int>(Timers::TimeCollectorCount));
-    TimeCollectorEntry all(static_cast<int>(Timers::All));
-#endif
+    TimeCollector::Initialize();
+    TimeCollectorEntry executionTime(Counters::All);
 
     std::ifstream input_stream("input_data.txt");
     InputMatrix inputMatrix(input_stream);
@@ -48,28 +46,9 @@ int main()
     irredundantMatrix.printR(*debugOutput);
 #endif
 
-#ifdef TIME_PROFILE
-    all.Stop();
+    executionTime.Stop();
     std::ofstream timeCollectorOutput("current_profile.txt");
-
-    std::map<int, std::string> names_string = {
-            { (int)Timers::All, "All"},
-            { (int)Timers::ReadingInput, "ReadingInput"},
-            { (int)Timers::PreparingInput, "PreparingInput"},
-            { (int)Timers::CalcR2Indexes, "CalcR2Indexes"},
-            { (int)Timers::SortMatrix, "SortMatrix"},
-            { (int)Timers::CalcR2Matrix, "CalcR2Matrix"},
-            { (int)Timers::PlanBuilding, "PlanBuilding"},
-            { (int)Timers::QHandling, "QHandling"},
-            { (int)Timers::RMerging, "RMerging"},
-            { (int)Timers::WritingOutput, "WritingOutput"},
-            { (int)Timers::Threading, "Threading"},
-            { (int)Timers::CrossThreading, "CrossThreading"},
-            { (int)Timers::TimeCollectorCount, "TimeCollectorCount"},
-    };
-
-    TimeCollector::PrintInfo(timeCollectorOutput, names_string);
-#endif
+    TimeCollector::PrintInfo(timeCollectorOutput);
 
     debugOutput->close();
     delete debugOutput;

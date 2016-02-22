@@ -4,23 +4,6 @@
 #include <ostream>
 #include <mutex>
 
-enum class Timers : int
-{
-    All,
-    ReadingInput,
-    PreparingInput,
-    CalcR2Matrix,
-    SortMatrix,
-    CalcR2Indexes,
-    PlanBuilding,
-    QHandling,
-    RMerging,
-    WritingOutput,
-    Threading,
-    CrossThreading,
-    TimeCollectorCount
-};
-
 std::mutex& getDebugStreamLock();
 std::ostream& getDebugStream();
 
@@ -40,13 +23,6 @@ std::ostream& getDebugStream();
 #else
 #define DEBUG_INFO(args);
 #define DEBUG_BLOCK(commands);
-#endif
-
-#ifdef TIME_PROFILE
-#define COLLECT_TIME(counter)\
-    TimeCollectorEntry __timeCollectorEntry(static_cast<int>(counter));
-#else
-#define COLLECT_TIME(counter);
 #endif
 
 #ifdef MULTITHREAD_DIVIDE2

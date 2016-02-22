@@ -17,7 +17,7 @@ def options(ctx):
                   default=False,
                   help='Use additional messages to finding errors')
    ctx.add_option('-p', '--profiling',
-                  action='store_true',
+                  action='count',
                   default=False,
                   help='Use time-collector for profiling perfomance')
 
@@ -67,8 +67,7 @@ def configure(ctx):
       ctx.env.append_value('CXXFLAGS', '-O2')
       
    if ctx.options.profiling:
-      ctx.env.PROFILING = True
-      ctx.env.append_value('DEFINES', 'TIME_PROFILE')
+      ctx.env.append_value('DEFINES', 'TIME_PROFILE=%d' % ctx.options.profiling)
       
    if ctx.options.use_multithread_divide_2:
       ctx.env.append_value('DEFINES', 'MULTITHREAD_DIVIDE2')

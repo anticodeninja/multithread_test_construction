@@ -26,48 +26,46 @@
 
 InputMatrix::InputMatrix(std::istream& input)
 {
-    {
-        COLLECT_TIME(Timers::ReadingInput);
-        input >> _rowsCount;
+    START_COLLECT_TIME(readingInput, Counters::ReadingInput);
+    input >> _rowsCount;
 
-        input >> _qColsCount;
-        _qMatrix = new int[_rowsCount * _qColsCount];
-        _qMinimum = new int[_qColsCount];
-        _qMaximum = new int[_qColsCount];
+    input >> _qColsCount;
+    _qMatrix = new int[_rowsCount * _qColsCount];
+    _qMinimum = new int[_qColsCount];
+    _qMaximum = new int[_qColsCount];
+    for(auto j=0; j<_qColsCount; ++j) {
+        _qMinimum[j] = DASH;
+        _qMaximum[j] = DASH;
+    }
+    for(auto i=0; i<_rowsCount; ++i) {
         for(auto j=0; j<_qColsCount; ++j) {
-            _qMinimum[j] = DASH;
-            _qMaximum[j] = DASH;
-        }
-        for(auto i=0; i<_rowsCount; ++i) {
-            for(auto j=0; j<_qColsCount; ++j) {
-                auto value = parseValue(input);
-                setFeature(i, j, value);
-                if (value != DASH) {
-                    if (_qMinimum[j] == DASH || value < _qMinimum[j])
-                        _qMinimum[j] = value;
-                    if (_qMaximum[j] == DASH || _qMaximum[j] < value)
-                        _qMaximum[j] = value;
-                }
+            auto value = parseValue(input);
+            setFeature(i, j, value);
+            if (value != DASH) {
+                if (_qMinimum[j] == DASH || value < _qMinimum[j])
+                    _qMinimum[j] = value;
+                if (_qMaximum[j] == DASH || _qMaximum[j] < value)
+                    _qMaximum[j] = value;
             }
         }
-
-        input >> _rColsCount;
-        _rMatrix = new int[_rowsCount * _rColsCount];
-        for(auto i=0; i<_rowsCount; ++i) {
-            for(auto j=0; j<_rColsCount; ++j) {
-                setImage(i, j, parseValue(input));
-            }
+    }
+    
+    input >> _rColsCount;
+    _rMatrix = new int[_rowsCount * _rColsCount];
+    for(auto i=0; i<_rowsCount; ++i) {
+        for(auto j=0; j<_rColsCount; ++j) {
+            setImage(i, j, parseValue(input));
         }
-
-        _r2Matrix = new int[_rowsCount];
     }
+    
+    _r2Matrix = new int[_rowsCount];
+    STOP_COLLECT_TIME(readingInput);
 
-    {
-        COLLECT_TIME(Timers::PreparingInput);
-        calcR2Matrix();
-        sortMatrix();
-        calcR2Indexes();
-    }
+    START_COLLECT_TIME(preparingInput, Counters::PreparingInput);
+    calcR2Matrix();
+    sortMatrix();
+    calcR2Indexes();
+    STOP_COLLECT_TIME(preparingInput);
 }
 
 InputMatrix::~InputMatrix() {
@@ -79,7 +77,7 @@ InputMatrix::~InputMatrix() {
 }
 
 void InputMatrix::printFeatureMatrix(std::ostream& stream) {
-    COLLECT_TIME(Timers::WritingOutput);
+    START_COLLECT_TIME(writingOutput, Counters::WritingOutput);
 
     stream << "# FeatureMatrix" << std::endl;
     stream << _rowsCount << " " << _qColsCount << std::endl;
@@ -92,10 +90,12 @@ void InputMatrix::printFeatureMatrix(std::ostream& stream) {
                 stream << getFeature(i, j);
         }
     }
+
+    STOP_COLLECT_TIME(writingOutput);
 }
 
 void InputMatrix::printImageMatrix(std::ostream& stream) {
-    COLLECT_TIME(Timers::WritingOutput)
+    START_COLLECT_TIME(writingOutput, Counters::WritingOutput);
 
     stream << "# ImageMatrix" << std::endl;
     stream << _rowsCount << " " << _rColsCount << std::endl;
@@ -109,10 +109,12 @@ void InputMatrix::printImageMatrix(std::ostream& stream) {
         }
         stream << "| " << _r2Matrix[i];
     }
+
+    STOP_COLLECT_TIME(writingOutput);
 }
 
 void InputMatrix::printDebugInfo(std::ostream& stream) {
-    COLLECT_TIME(Timers::WritingOutput)
+    START_COLLECT_TIME(writingOutput, Counters::WritingOutput);
 
     stream << "qMinimum" << std::endl;
     for(size_t i=0; i<_qColsCount; ++i) {
@@ -130,6 +132,8 @@ void InputMatrix::printDebugInfo(std::ostream& stream) {
     for(size_t i=0; i<_r2Counts.size(); ++i) {
         stream << _r2Indexes[i] << " - " << _r2Counts[i] << std::endl;
     }
+
+    STOP_COLLECT_TIME(writingOutput);
 }
 
 int InputMatrix::parseValue(std::istream &stream)
@@ -143,7 +147,6 @@ int InputMatrix::parseValue(std::istream &stream)
 
 void InputMatrix::calcR2Matrix()
 {
-    COLLECT_TIME(Timers::CalcR2Matrix);
     auto currentId = 0;
     std::map<WorkRow, int> mappings;
     for(auto i=0; i<_rowsCount; ++i) {
@@ -161,29 +164,7 @@ void InputMatrix::calcR2Matrix()
     _r2Count = currentId;
 }
 
-void InputMatrix::calcR2Indexes() {
-    COLLECT_TIME(Timers::CalcR2Indexes);
-    auto newId = 0;
-    auto startIndex = 0;
-
-    auto currentId = _r2Matrix[0];
-    _r2Indexes.push_back(0);
-    for(auto i=0; i<_rowsCount; ++i) {
-        if(_r2Matrix[i] != currentId) {
-            _r2Indexes.push_back(i);
-            _r2Counts.push_back(i - startIndex);
-
-            currentId = _r2Matrix[i];
-            startIndex = i;
-            newId += 1;
-        }
-        _r2Matrix[i] = newId;
-    }
-    _r2Counts.push_back(_rowsCount - startIndex);
-}
-
 void InputMatrix::sortMatrix() {
-    COLLECT_TIME(Timers::SortMatrix);
     std::vector<int> counts(_r2Count);
     for(auto i=0; i<_rowsCount; ++i) {
         counts[_r2Matrix[i]] += 1;
@@ -233,6 +214,26 @@ void InputMatrix::sortMatrix() {
     delete[] oldR2Matrix;
 }
 
+void InputMatrix::calcR2Indexes() {
+    auto newId = 0;
+    auto startIndex = 0;
+
+    auto currentId = _r2Matrix[0];
+    _r2Indexes.push_back(0);
+    for(auto i=0; i<_rowsCount; ++i) {
+        if(_r2Matrix[i] != currentId) {
+            _r2Indexes.push_back(i);
+            _r2Counts.push_back(i - startIndex);
+
+            currentId = _r2Matrix[i];
+            startIndex = i;
+            newId += 1;
+        }
+        _r2Matrix[i] = newId;
+    }
+    _r2Counts.push_back(_rowsCount - startIndex);
+}
+
 #ifdef MULTITHREAD_DIVIDE2
 
 void InputMatrix::calculate(IrredundantMatrix &irredundantMatrix)
@@ -244,7 +245,7 @@ void InputMatrix::calculate(IrredundantMatrix &irredundantMatrix)
         DEBUG_INFO("Step: " << step);
 
         for(auto threadId = 0; threadId < planBuilder.getThreadsCountForStep(step); ++threadId) {
-            COLLECT_TIME(Timers::Threading);
+            START_COLLECT_TIME(threading, Counters::Threading);
             threads[threadId] = std::thread([this, step, threadId, &irredundantMatrix, &planBuilder]()
             {
                 #ifdef DIFFERENT_MATRICES
@@ -276,6 +277,7 @@ void InputMatrix::calculate(IrredundantMatrix &irredundantMatrix)
                 irredundantMatrix.addMatrixConcurrent(std::move(matrixForThread));
                 #endif
             });
+            STOP_COLLECT_TIME(threading);
         }
         
         for(auto threadId = 0; threadId < planBuilder.getThreadsCountForStep(step); ++threadId) {
@@ -297,7 +299,7 @@ void InputMatrix::calculate(IrredundantMatrix &irredundantMatrix)
     MasterWorkerPlan planBuilder(_r2Counts.data(), _r2Counts.size());
     
     for(auto threadId = 0; threadId < maxThreads; ++threadId) {
-        COLLECT_TIME(Timers::Threading);
+        START_COLLECT_TIME(threading, Counters::Threading);
         threads[threadId] = std::thread([this, threadId, &irredundantMatrix, &planBuilder]()
         {
             #ifdef DIFFERENT_MATRICES
@@ -331,6 +333,7 @@ void InputMatrix::calculate(IrredundantMatrix &irredundantMatrix)
                 #endif
             }
         });
+        STOP_COLLECT_TIME(threading);
     }
     
     for(auto threadId = 0; threadId < maxThreads; ++threadId) {
@@ -369,7 +372,7 @@ void InputMatrix::processBlock(IrredundantMatrix &irredundantMatrix,
                                int offset1, int length1, int offset2, int length2) {
     for(auto i=0; i<length1; ++i) {
         for(auto j=0; j<length2; ++j) {
-            COLLECT_TIME(Timers::QHandling);
+            START_COLLECT_TIME(qHandling, Counters::QHandling);
 
             auto diffRow = Row::createAsDifference(
                                                    WorkRow(_qMatrix, offset1+i, _qColsCount),
@@ -377,6 +380,7 @@ void InputMatrix::processBlock(IrredundantMatrix &irredundantMatrix,
 
             int r[_qColsCount];
             calcRVector(r, offset1+i, offset2+j);
+            STOP_COLLECT_TIME(qHandling);
 
             #ifdef ADD_ROW_CONCURRENT
             irredundantMatrix.addRowConcurrent(std::move(diffRow), r);
