@@ -17,10 +17,11 @@
 struct IrredundantRowNode
 {
     IrredundantRowNode() :
-    next(nullptr), sync(ATOMIC_FLAG_INIT) {};
+    age(0), next(nullptr), sync(ATOMIC_FLAG_INIT) {};
     
     Row data;
     IrredundantRowNode* next;
+    int age;
     std::atomic_flag sync;
 };
 

@@ -60,7 +60,8 @@ void IrredundantMatrix::addRowInternal(Row &&row) {
     START_COLLECT_TIME(rMerging, Counters::RMerging);
 
     IrredundantRowNode* start = nullptr;
-    IrredundantRowNode* prevStart = nullptr;
+    auto ageBoundMin = 0;
+    auto ageBoundMax = 0;
 
     for (;;) {
         START_COLLECT_TIME(crossThreading1, Counters::CrossThreading);
@@ -69,12 +70,16 @@ void IrredundantMatrix::addRowInternal(Row &&row) {
         
         auto prev = &_head;
         start = _head.next;
+        ageBoundMax = _head.age;
 
         for(;;) {
             auto current = prev->next;
             
-            if (current == nullptr || current == prevStart) {
+            if (current == nullptr || current->age < ageBoundMin) {
                 prev->sync.clear();
+                if(current != nullptr) {
+                    DEBUG_INFO("-EX " << current->age << " < " << ageBoundMin);
+                }
                 break;
             } else {
                 START_COLLECT_TIME(crossThreading2, Counters::CrossThreading);
@@ -105,17 +110,19 @@ void IrredundantMatrix::addRowInternal(Row &&row) {
         STOP_COLLECT_TIME(crossThreading3);
         
         if (_head.next == start) {
-            DEBUG_INFO("-AR " << row);
             auto newNode = new IrredundantRowNode();
             newNode->data = std::move(row);
             newNode->next = _head.next;
+            newNode->age = ++_head.age;
             _head.next = newNode;
+
+            DEBUG_INFO("-AR " << newNode->data << ", " << newNode->age);
             
             _head.sync.clear(std::memory_order_release);
             return;
         } else {
+            ageBoundMin = ageBoundMax;
             _head.sync.clear(std::memory_order_release);
-            prevStart = start;
             std::this_thread::yield();
         }
     }

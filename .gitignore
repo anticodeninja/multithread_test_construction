@@ -2,3 +2,4 @@ __pycache__
 build_directory
 .lock-waf*
 .waf*
+waf3*
