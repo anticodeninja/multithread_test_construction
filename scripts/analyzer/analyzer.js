@@ -12,20 +12,13 @@
             params: {
                 "All": {c: "#FFA223", h: 1/3},
                 "ReadingInput": {c: "#5BA9EA", h: 1},
-                "WritingOutput": {c: "#5BA9EA", h: 1},
-
-                "PreparingInput": {c: "#51ECAE", h: 2/3},
-                "CalcR2Matrix": {c: "#1ED78C", h: 1},
-                "SortMatrix": {c: "#00BB70", h: 1},
-                "CalcR2Indexes": {c: "#007B49", h: 1},
-
+                "PreparingInput": {c: "#51ECAE", h: 1},
                 "PlanBuilding": {c: "#FF8A58", h: 1},
                 "RMerging": {c: "#FF4C00", h: 2/3},
                 "QHandling": {c: "#B53600", h: 1/3},
-
+                "Threading": {c: "#0966B4", h: 1/2},
                 "CrossThreading": {c: "#074375", h: 1},
-                "Threading": {c: "#0966B4", h: 1},
-
+                "WritingOutput": {c: "#5BA9EA", h: 1},
                 "Unknown": {c: "#F00", h: 1}
             }
         },
@@ -191,7 +184,9 @@
     function prepareData(index) {
         var parseFile = function(data) {
             var i = 0,
+                verbose = 2,
                 parsedLine,
+                parsedDict,
                 koefX = 0.0001,
                 koefY = 100,
                 threadId,
@@ -211,45 +206,160 @@
                 lines = data.split(/\r?\n/);
 
             self.primitivies.splice(0, self.primitivies.length);
+            i = 0;
+            if (lines[i].indexOf("Verbose") !== -1) {
+                verbose = parseInt(lines[i].substring(lines[i].indexOf(":") + 1));
+                i += 1;
+            }
 
-            for(i=1; i<lines.length; ++i) {
-                parsedLine = lines[i].split(/\s+/);
-
-                threadId = parseInt(parsedLine[0]);
-                type = parsedLine[1];
-                startTime = parseInt(parsedLine[2]);
-                endTime = parseInt(parsedLine[3]);
-                params = self.config.params[type] || self.config.params["Unknown"];
-
-                if (threadId > maxThreadId) {
-                    maxThreadId = threadId;
-                }
-
-                if (endTime > maxTime) {
-                    maxTime = endTime;
-                }
-
-                if (type == "CrossThreading") {
-                    threadsSyncTime += endTime - startTime;
-                }
-
-                if (params.h == 0) {
-                    continue;
-                }
-
+            if (verbose === 1) {
+                parsedDict = _(lines)
+                    .chain()
+                    .rest(i+1)
+                    .map(function(a) { var b = a.split(" "); return [b[0], parseInt(b[1])]; })
+                    .object()
+                    .value();
+                
+                params = self.config.params["All"] || self.config.params["Unknown"]
                 self.primitivies.push({
                     type: "rectangle",
                     fillColor: params.c,
-                    x: transformX(startTime),
-                    y: transformY(threadId, params.draw_func),
-                    width: transformX(endTime - startTime),
+                    x: transformX(0),
+                    y: transformY(1, params.draw_func),
+                    width: transformX(parsedDict["All"]),
                     height: params.h * koefY
                 });
+                maxTime = 0;
+                
+                params = self.config.params["ReadingInput"] || self.config.params["Unknown"]
+                self.primitivies.push({
+                    type: "rectangle",
+                    fillColor: params.c,
+                    x: transformX(0),
+                    y: transformY(1, params.draw_func),
+                    width: transformX(parsedDict["ReadingInput"]),
+                    height: params.h * koefY
+                });
+                maxTime += parsedDict["ReadingInput"];
+                
+                params = self.config.params["PreparingInput"] || self.config.params["Unknown"]
+                self.primitivies.push({
+                    type: "rectangle",
+                    fillColor: params.c,
+                    x: transformX(maxTime),
+                    y: transformY(1, params.draw_func),
+                    width: transformX(parsedDict["PreparingInput"]),
+                    height: params.h * koefY
+                });
+                maxTime += parsedDict["PreparingInput"];
+
+                params = self.config.params["PlanBuilding"] || self.config.params["Unknown"]
+                self.primitivies.push({
+                    type: "rectangle",
+                    fillColor: params.c,
+                    x: transformX(maxTime),
+                    y: transformY(1, params.draw_func),
+                    width: transformX(parsedDict["PlanBuilding"]),
+                    height: params.h * koefY
+                });
+                maxTime += parsedDict["PlanBuilding"];
+
+                params = self.config.params["QHandling"] || self.config.params["Unknown"]
+                self.primitivies.push({
+                    type: "rectangle",
+                    fillColor: params.c,
+                    x: transformX(maxTime),
+                    y: transformY(1, params.draw_func),
+                    width: transformX(parsedDict["QHandling"]),
+                    height: params.h * koefY
+                });
+                params = self.config.params["RMerging"] || self.config.params["Unknown"]
+                self.primitivies.push({
+                    type: "rectangle",
+                    fillColor: params.c,
+                    x: transformX(maxTime),
+                    y: transformY(1, params.draw_func),
+                    width: transformX(parsedDict["RMerging"]),
+                    height: params.h * koefY
+                });
+                params = self.config.params["Threading"] || self.config.params["Unknown"]
+                self.primitivies.push({
+                    type: "rectangle",
+                    fillColor: params.c,
+                    x: transformX(maxTime),
+                    y: transformY(2, params.draw_func),
+                    width: transformX(parsedDict["Threading"]),
+                    height: params.h * koefY
+                });
+                params = self.config.params["CrossThreading"] || self.config.params["Unknown"]
+                self.primitivies.push({
+                    type: "rectangle",
+                    fillColor: params.c,
+                    x: transformX(maxTime),
+                    y: transformY(2, params.draw_func),
+                    width: transformX(parsedDict["CrossThreading"]),
+                    height: params.h * koefY
+                });
+                maxTime += _(["QHandling", "RMerging", "Threading", "CrossThreading"])
+                    .chain()
+                    .map(function(a) { return parsedDict[a]; })
+                    .max()
+                    .value();
+
+                params = self.config.params["WritingOutput"] || self.config.params["Unknown"]
+                self.primitivies.push({
+                    type: "rectangle",
+                    fillColor: params.c,
+                    x: transformX(maxTime),
+                    y: transformY(1, params.draw_func),
+                    width: transformX(parsedDict["WritingOutput"]),
+                    height: params.h * koefY
+                });
+                maxTime += parsedDict["WritingOutput"];
+
+                maxThreadId = 2;
+                maxTime = parsedDict["All"];
+                threadsSyncTime = parsedDict["CrossThreading"];
+            } else if (verbose === 2) {
+                for(i += 1; i<lines.length; ++i) {
+                    parsedLine = lines[i].split(/\s+/);
+
+                    threadId = parseInt(parsedLine[0]);
+                    type = parsedLine[1];
+                    startTime = parseInt(parsedLine[2]);
+                    endTime = parseInt(parsedLine[3]);
+                    params = self.config.params[type] || self.config.params["Unknown"];
+
+                    if (threadId > maxThreadId) {
+                        maxThreadId = threadId;
+                    }
+
+                    if (endTime > maxTime) {
+                        maxTime = endTime;
+                    }
+
+                    if (type == "CrossThreading") {
+                        threadsSyncTime += endTime - startTime;
+                    }
+
+                    if (params.h == 0) {
+                        continue;
+                    }
+
+                    self.primitivies.push({
+                        type: "rectangle",
+                        fillColor: params.c,
+                        x: transformX(startTime),
+                        y: transformY(threadId, params.draw_func),
+                        width: transformX(endTime - startTime),
+                        height: params.h * koefY
+                    });
+                }
             }
             
             self.area.width = transformX(maxTime);
             self.area.height = transformY(maxThreadId);
-
+            
             updateStat(self.tests[self.data.currentIndex], maxTime, maxThreadId, threadsSyncTime);
             updateViewPortBounds();
             render();
