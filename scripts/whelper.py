@@ -2,6 +2,7 @@
 # encoding: utf-8
 
 import os
+import json
 
 from waflib import Options, Scripting, Logs
 from waflib.Node import Node
@@ -49,6 +50,73 @@ class RunTestTask(Task):
 
         return 0
 
+class CollectResultTask(Task):
+    color = 'PINK'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.container = args[0]
+        self.bldnode = args[1]
+
+    def runnable_status(self):
+        return RUN_ME
+
+    def run(self):
+        Logs.pprint('CYAN', "Collect data...")
+        current = {}
+
+        with open(self.bldnode.find_node('current_profile.txt').abspath()) as profile:
+            if (not next(profile).startswith("// Verbose: 1")):
+                Logs.pprint('CYAN', "Incorrect profile format")
+                return 1
+            next(profile)
+            
+            for line in profile:
+                line = line.split(' ')
+                current[line[0]] = int(line[1])
+
+        self.container.append(current)
+        return 0
+
+class PrintCollectedResultsTask(Task):
+    color = 'PINK'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.container = args[0]
+        self.bldnode = args[1]
+
+    def runnable_status(self):
+        return RUN_ME
+
+    def run(self):
+        Logs.pprint('CYAN', "Process data...")
+        keys = self.container[0].keys()
+        count = len(self.container)
+        
+        total = {}
+        detailed = {}
+
+        for key in keys:
+            total[key] = 0
+            detailed[key] = []
+            
+        for test in self.container:
+            for key in keys:
+                total[key] += test[key]
+                detailed[key].append(test[key])
+
+        with open(self.bldnode.make_node('current_profile.txt').abspath(), 'w') as profile:
+            profile.write("// Verbose: 1\n")
+            profile.write("{0}\n".format(len(self.container[0])))
+            for key in keys:
+                profile.write("{0} {1}\n".format(key, total[key] / count))
+
+        with open(self.bldnode.make_node('current_profile_detailed.json').abspath(), 'w') as profile:
+                  json.dump(detailed, profile)
+
+        return 0
+
 class RunContext(BuildContext):
     cmd = 'debug'
     fun = 'debug'
@@ -60,7 +128,7 @@ class RunTestsContext(BuildContext):
     cmd = 'run_tests'
     fun = 'run_tests'
 
-    def run(self, available_params, configurations):
+    def run(self, perf_run, available_params, configurations):
         test_build_path = self.path.make_node(self.bldnode.name + '_tests')
        
         Options.lockfile = Options.lockfile + '_tests'
@@ -77,11 +145,16 @@ class RunTestsContext(BuildContext):
       
             Scripting.run_command('configure')
             Scripting.run_command('build')
-            Scripting.run_command('debug')
+            Scripting.run_command('perf' if perf_run else 'debug')
 
             self.exec_command('cp %s %s' % (
                 test_build_path.find_node('current_profile.txt').abspath(),
                 self.bldnode.make_node('%s_profile.txt' % configuration['id']).abspath()))
+
+            if perf_run:
+                self.exec_command('cp %s %s' % (
+                    test_build_path.find_node('current_profile_detailed.json').abspath(),
+                    self.bldnode.make_node('%s_profile_detailed.json' % configuration['id']).abspath()))
          
 
         Scripting.run_command('distclean')
@@ -92,3 +165,23 @@ class AnalyzeContext(BuildContext):
 
     def run(self, port, result_path):
         AnalyzerServer(port, result_path).run()
+
+class PerfContext(BuildContext):
+    cmd = 'perf'
+    fun = 'perf'
+
+    def run(self, passes, executable):
+        if self.env.profiling and self.env.profiling >= 2:
+            ctx.fatal('Perf command is allowed only with profiling level 1 and 2')
+
+        container = []
+
+        for i in range(passes):
+            self.add_to_group(RunTestTask(True, self.bldnode.find_node(executable), env=self.env))
+            self.add_group()
+            self.add_to_group(CollectResultTask(container, self.bldnode, env=self.env))
+            self.add_group()
+
+        self.add_to_group(PrintCollectedResultsTask(container, self.bldnode, env=self.env))
+        
+        

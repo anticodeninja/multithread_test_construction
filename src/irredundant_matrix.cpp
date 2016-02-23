@@ -28,10 +28,7 @@ void IrredundantMatrix::addRow(Row&& row, int* r)
 
 void IrredundantMatrix::addRowConcurrent(Row&& row, int* r)
 {
-    START_COLLECT_TIME(crossThreading, Counters::CrossThreading);
-    while (_rSync.test_and_set(std::memory_order_acquire));
-    STOP_COLLECT_TIME(crossThreading);
-    
+    while (_rSync.test_and_set(std::memory_order_acquire));    
     for(auto i=0; i<_width; ++i) {
         _r[i] += r[i];
     }
@@ -42,9 +39,7 @@ void IrredundantMatrix::addRowConcurrent(Row&& row, int* r)
 
 void IrredundantMatrix::addMatrixConcurrent(IrredundantMatrix &&matrix)
 {
-    START_COLLECT_TIME(crossThreading, Counters::CrossThreading);
     while (_rSync.test_and_set(std::memory_order_acquire));
-    STOP_COLLECT_TIME(crossThreading);
     
     for(auto i=0; i<_width; ++i) {
         _r[i] += matrix._r[i];
@@ -64,9 +59,7 @@ void IrredundantMatrix::addRowInternal(Row &&row) {
     auto ageBoundMax = 0;
 
     for (;;) {
-        START_COLLECT_TIME(crossThreading1, Counters::CrossThreading);
         while (_head.sync.test_and_set(std::memory_order_acquire));
-        STOP_COLLECT_TIME(crossThreading1);
         
         auto prev = &_head;
         start = _head.next;
@@ -82,9 +75,7 @@ void IrredundantMatrix::addRowInternal(Row &&row) {
                 }
                 break;
             } else {
-                START_COLLECT_TIME(crossThreading2, Counters::CrossThreading);
                 while (current->sync.test_and_set(std::memory_order_acquire));
-                STOP_COLLECT_TIME(crossThreading2);
                 
                 if (current->data.isInclude(row)) {
                     DEBUG_INFO("-CB " << row << " | " << current->data);
@@ -105,9 +96,7 @@ void IrredundantMatrix::addRowInternal(Row &&row) {
         }
 
         // Append new row
-        START_COLLECT_TIME(crossThreading3, Counters::CrossThreading);
         while (_head.sync.test_and_set(std::memory_order_acquire));
-        STOP_COLLECT_TIME(crossThreading3);
         
         if (_head.next == start) {
             auto newNode = new IrredundantRowNode();

@@ -112,11 +112,17 @@ def build(ctx):
 
 def debug(ctx):
    build(ctx)
-   ctx.add_group();
+   ctx.add_group()
    ctx.run(True, 'multithread')
+
+def perf(ctx):
+   build(ctx)
+   ctx.add_group()
+   ctx.run(100, 'multithread')
 
 def run_tests(ctx):
    ctx.run(
+      True,
       available_params = [
          "use_multithread_divide_2",
          "use_multithread_master_worker",
