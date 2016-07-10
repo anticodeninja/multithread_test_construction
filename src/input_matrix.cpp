@@ -248,6 +248,8 @@ void InputMatrix::calculate(IrredundantMatrix &irredundantMatrix)
             START_COLLECT_TIME(threading, Counters::Threading);
             threads[threadId] = std::thread([this, step, threadId, &irredundantMatrix, &planBuilder]()
             {
+                TimeCollector::ThreadInitialize();
+                
                 #ifdef DIFFERENT_MATRICES
                 IrredundantMatrix matrixForThread(_qColsCount);
                 auto currentMatrix = &matrixForThread;
@@ -276,6 +278,8 @@ void InputMatrix::calculate(IrredundantMatrix &irredundantMatrix)
                 #ifdef DIFFERENT_MATRICES
                 irredundantMatrix.addMatrixConcurrent(std::move(matrixForThread));
                 #endif
+
+                TimeCollector::ThreadFinalize();
             });
             STOP_COLLECT_TIME(threading);
         }
@@ -302,6 +306,8 @@ void InputMatrix::calculate(IrredundantMatrix &irredundantMatrix)
         START_COLLECT_TIME(threading, Counters::Threading);
         threads[threadId] = std::thread([this, threadId, &irredundantMatrix, &planBuilder]()
         {
+            TimeCollector::ThreadInitialize();
+            
             #ifdef DIFFERENT_MATRICES
             IrredundantMatrix matrixForThread(_qColsCount);
             auto currentMatrix = &matrixForThread;
@@ -332,6 +338,8 @@ void InputMatrix::calculate(IrredundantMatrix &irredundantMatrix)
                 irredundantMatrix.addMatrixConcurrent(std::move(matrixForThread));
                 #endif
             }
+
+            TimeCollector::ThreadFinalize();
         });
         STOP_COLLECT_TIME(threading);
     }

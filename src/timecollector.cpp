@@ -7,6 +7,7 @@
 #include "global_settings.h"
 
 time_point TimeCollector::_initializeTime;
+std::mutex TimeCollector::_mutex;
 
 std::map<Counters, std::string> counterNames = {
     { Counters::All, "All"},
@@ -21,11 +22,13 @@ std::map<Counters, std::string> counterNames = {
 };
 
 #if TIME_PROFILE >= 2
-const int PREDICTED_ELEMENTS = 1048576;
-std::vector<TimeBaseEntry> TimeCollector::_timeEntries;
-std::mutex TimeCollector::_mutex;
+const int GLOBAL_RESERVATION = 1048576;
+const int THREAD_RESERVATION = 1024;
+std::vector<TimeBaseEntry> TimeCollector::_globalList;
+thread_local std::vector<TimeBaseEntry> TimeCollector::_threadList;
 #else
-std::atomic<ulong> TimeCollector::_totalTime[static_cast<int>(Counters::CountersCount)];
+std::vector<ulong> TimeCollector::_globalTotal;
+thread_local std::vector<ulong> TimeCollector::_threadTotal;
 #endif
 
 TimeCollectorEntry::TimeCollectorEntry(Counters counter)
@@ -57,28 +60,44 @@ void TimeCollector::Initialize()
 {
     _initializeTime = std::chrono::steady_clock::now();
 #if TIME_PROFILE >= 2
-    _timeEntries.reserve(PREDICTED_ELEMENTS);
+    _globalList.reserve(GLOBAL_RESERVATION);
+#else
+    _globalTotal.resize(static_cast<int>(Counters::CountersCount));
 #endif
 }
 
 #if TIME_PROFILE >= 2
+
 void TimeCollector::AddToTimeCollector(const TimeCollectorEntry &entry)
 {
-    _mutex.lock();
-    _timeEntries.push_back(TimeBaseEntry(entry.getCounter(), entry.getThreadId(),
+    _threadList.push_back(TimeBaseEntry(entry.getCounter(), entry.getThreadId(),
                                          entry.getStartTime(), entry.getEndTime()));
+}
+
+void TimeCollector::ThreadInitialize()
+{
+    _threadList.reserve(THREAD_RESERVATION);
+}
+
+void TimeCollector::ThreadFinalize()
+{
+    _mutex.lock();
+
+    std::move(_threadList.begin(), _threadList.end(), std::back_inserter(_globalList));
+    _threadList.clear();
+
     _mutex.unlock();
 }
 
 void TimeCollector::PrintInfo(std::ostream &stream)
 {
     stream << "// Verbose: 2" << std::endl;
-    stream << _timeEntries.size() << std::endl;
+    stream << _globalList.size() << std::endl;
 
     auto humanThreadId = 1;
     std::map<std::thread::id, int> humanThreads;
 
-    for(auto i = _timeEntries.begin(); i != _timeEntries.end(); ++i) {
+    for(auto i = _globalList.begin(); i != _globalList.end(); ++i) {
         auto tempId = humanThreads.find(i->getThreadId());
         if(tempId == humanThreads.end())
         {
@@ -93,13 +112,30 @@ void TimeCollector::PrintInfo(std::ostream &stream)
         stream << std::endl;
     }
 }
+
 #else
+
 void TimeCollector::AddToTimeCollector(const TimeCollectorEntry &entry)
 {
-    _totalTime[static_cast<int>(entry.getCounter())]
-        .fetch_add(
-                   std::chrono::duration_cast<time_duration>(entry.getEndTime() - entry.getStartTime()).count(),
-                   std::memory_order_acq_rel);
+    _threadTotal[static_cast<int>(entry.getCounter())] += 
+                   std::chrono::duration_cast<time_duration>(entry.getEndTime() - entry.getStartTime()).count();
+}
+
+void TimeCollector::ThreadInitialize()
+{
+    _threadTotal.resize(static_cast<int>(Counters::CountersCount));
+}
+
+void TimeCollector::ThreadFinalize()
+{
+    _mutex.lock();
+
+    for(auto i = 0; i < static_cast<int>(Counters::CountersCount); ++i) {
+        _globalTotal[i] += _threadTotal[i];
+        _threadTotal[i] = 0;
+    }
+
+    _mutex.unlock();
 }
 
 void TimeCollector::PrintInfo(std::ostream &stream)
@@ -109,8 +145,9 @@ void TimeCollector::PrintInfo(std::ostream &stream)
 
     for(auto i = 0; i < static_cast<int>(Counters::CountersCount); ++i) {
         stream << counterNames[static_cast<Counters>(i)] << " ";
-        stream << _totalTime[i];
+        stream << _globalTotal[i];
         stream << std::endl;
     }
 }
+
 #endif

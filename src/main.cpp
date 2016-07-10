@@ -20,6 +20,7 @@ int main()
     printBuildFlags(getDebugStream());
 
     TimeCollector::Initialize();
+    TimeCollector::ThreadInitialize();
     TimeCollectorEntry executionTime(Counters::All);
 
     std::ifstream input_stream("input_data.txt");
@@ -48,6 +49,8 @@ int main()
 
     executionTime.Stop();
     std::ofstream timeCollectorOutput("current_profile.txt");
+
+    TimeCollector::ThreadFinalize();
     TimeCollector::PrintInfo(timeCollectorOutput);
 
     debugOutput->close();

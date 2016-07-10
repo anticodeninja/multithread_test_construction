@@ -4,16 +4,11 @@
 #include <iostream>
 #include <chrono>
 #include <thread>
+#include <vector>
+#include <mutex>
 
 #ifndef TIME_PROFILE
 #define TIME_PROFILE 0
-#endif
-
-#if TIME_PROFILE >= 2
-#include <vector>
-#include <mutex>
-#else
-#include <atomic>
 #endif
 
 #if TIME_PROFILE >= 1
@@ -121,14 +116,19 @@ public:
     static void AddToTimeCollector(const TimeCollectorEntry& entry);
     static void PrintInfo(std::ostream& stream);
 
+    static void ThreadInitialize();
+    static void ThreadFinalize();
+
 private:
     static time_point _initializeTime;
+    static std::mutex _mutex;
 
 #if TIME_PROFILE >= 2
-    static std::vector<TimeBaseEntry> _timeEntries;
-    static std::mutex _mutex;
+    static std::vector<TimeBaseEntry> _globalList;
+    static thread_local std::vector<TimeBaseEntry> _threadList;
 #else
-    static std::atomic<ulong> _totalTime[];
+    static std::vector<ulong> _globalTotal;
+    static thread_local std::vector<ulong> _threadTotal;
 #endif
 
 };
