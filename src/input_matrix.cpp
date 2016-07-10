@@ -321,7 +321,7 @@ void InputMatrix::calculate(IrredundantMatrix &irredundantMatrix)
                 auto task = planBuilder.getTask();
                 if (task->isEmpty()) {
                     DEBUG_INFO("Thread " << threadId << " stopped");
-                    return;
+                    break;
                 }
 
                 DEBUG_INFO("Thread " << threadId << " is working on " << task->getFirst() << ":" << task->getSecond());

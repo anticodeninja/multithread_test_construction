@@ -28,7 +28,10 @@ void IrredundantMatrix::addRow(Row&& row, int* r)
 
 void IrredundantMatrix::addRowConcurrent(Row&& row, int* r)
 {
+    START_COLLECT_TIME(crossThreading, Counters::CrossThreading);
     while (_rSync.test_and_set(std::memory_order_acquire));    
+    STOP_COLLECT_TIME(crossThreading);
+
     for(auto i=0; i<_width; ++i) {
         _r[i] += r[i];
     }
@@ -39,7 +42,9 @@ void IrredundantMatrix::addRowConcurrent(Row&& row, int* r)
 
 void IrredundantMatrix::addMatrixConcurrent(IrredundantMatrix &&matrix)
 {
-    while (_rSync.test_and_set(std::memory_order_acquire));
+    START_COLLECT_TIME(crossThreading, Counters::CrossThreading);
+    while (_rSync.test_and_set(std::memory_order_acquire));    
+    STOP_COLLECT_TIME(crossThreading);
     
     for(auto i=0; i<_width; ++i) {
         _r[i] += matrix._r[i];
@@ -59,7 +64,9 @@ void IrredundantMatrix::addRowInternal(Row &&row) {
     auto ageBoundMax = 0;
 
     for (;;) {
+        START_COLLECT_TIME(crossThreading, Counters::CrossThreading);
         while (_head.sync.test_and_set(std::memory_order_acquire));
+        PAUSE_COLLECT_TIME(crossThreading);
         
         auto prev = &_head;
         start = _head.next;
@@ -75,7 +82,9 @@ void IrredundantMatrix::addRowInternal(Row &&row) {
                 }
                 break;
             } else {
+                CONTINUE_COLLECT_TIME(crossThreading);
                 while (current->sync.test_and_set(std::memory_order_acquire));
+                PAUSE_COLLECT_TIME(crossThreading);
                 
                 if (current->data.isInclude(row)) {
                     DEBUG_INFO("-CB " << row << " | " << current->data);
@@ -96,7 +105,9 @@ void IrredundantMatrix::addRowInternal(Row &&row) {
         }
 
         // Append new row
+        CONTINUE_COLLECT_TIME(crossThreading);
         while (_head.sync.test_and_set(std::memory_order_acquire));
+        STOP_COLLECT_TIME(crossThreading);
         
         if (_head.next == start) {
             auto newNode = new IrredundantRowNode();
@@ -163,9 +174,9 @@ void IrredundantMatrix::printMatrix(std::ostream &stream)
 
 void IrredundantMatrix::addRowConcurrent(Row&& row, int* r)
 {
-    START_COLLECT_TIME(crossThreading1, Counters::CrossThreading);
+    START_COLLECT_TIME(crossThreading, Counters::CrossThreading);
     _rMutex.lock();
-    STOP_COLLECT_TIME(crossThreading1);
+    PAUSE_COLLECT_TIME(crossThreading);
     
     for(auto i=0; i<_width; ++i) {
         _r[i] += r[i];
@@ -173,9 +184,9 @@ void IrredundantMatrix::addRowConcurrent(Row&& row, int* r)
 
     _rMutex.unlock();
 
-    START_COLLECT_TIME(crossThreading2, Counters::CrossThreading);
+    CONTINUE_COLLECT_TIME(crossThreading);
     _rowsMutex.lock();
-    STOP_COLLECT_TIME(crossThreading2);
+    STOP_COLLECT_TIME(crossThreading);
 
     addRowInternal(std::move(row));
 
@@ -184,9 +195,9 @@ void IrredundantMatrix::addRowConcurrent(Row&& row, int* r)
 
 void IrredundantMatrix::addMatrixConcurrent(IrredundantMatrix &&matrix)
 {
-    START_COLLECT_TIME(crossThreading1, Counters::CrossThreading);
+    START_COLLECT_TIME(crossThreading, Counters::CrossThreading);
     _rMutex.lock();
-    STOP_COLLECT_TIME(crossThreading1);
+    PAUSE_COLLECT_TIME(crossThreading);
     
     for(auto i=0; i<_width; ++i) {
         _r[i] += matrix._r[i];
@@ -194,9 +205,9 @@ void IrredundantMatrix::addMatrixConcurrent(IrredundantMatrix &&matrix)
 
     _rMutex.unlock();
 
-    START_COLLECT_TIME(crossThreading2, Counters::CrossThreading);
+    CONTINUE_COLLECT_TIME(crossThreading);
     _rowsMutex.lock();
-    STOP_COLLECT_TIME(crossThreading2);
+    STOP_COLLECT_TIME(crossThreading);
 
     for(auto i=matrix._rows.begin(); i!=matrix._rows.end(); ++i) {
         addRowInternal(std::move(*i));
