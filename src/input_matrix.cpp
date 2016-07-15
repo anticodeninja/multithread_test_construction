@@ -5,7 +5,14 @@
 #include <map>
 #include <tuple>
 #include <algorithm>
+
+#ifdef MULTITHREAD
 #include <thread>
+#include <condition_variable>
+#ifndef DIFFERENT_MATRICES
+#define ADD_ROW_CONCURRENT
+#endif
+#endif
 
 #include "global_settings.h"
 #include "workrow.h"
@@ -16,12 +23,6 @@
 #include "divide2_plan.h"
 #elif MULTITHREAD_MASTERWORKER
 #include "masterworker_plan.h"
-#endif
-
-#ifdef MULTITHREAD
-#ifndef DIFFERENT_MATRICES
-#define ADD_ROW_CONCURRENT
-#endif
 #endif
 
 InputMatrix::InputMatrix(std::istream& input)
@@ -241,52 +242,96 @@ void InputMatrix::calculate(IrredundantMatrix &irredundantMatrix)
     Divide2Plan planBuilder(_r2Counts.data(), _r2Counts.size());
     std::vector<std::thread> threads(planBuilder.getMaxThreadsCount());
 
-    for(auto step = 0; step < planBuilder.getStepsCount(); ++step) {
-        DEBUG_INFO("Step: " << step);
+    std::mutex sync;
+    std::condition_variable mcv;
+    std::condition_variable wcv;
+    int unblockedStep = -1;
+    int waited = planBuilder.getMaxThreadsCount();
 
-        for(auto threadId = 0; threadId < planBuilder.getThreadsCountForStep(step); ++threadId) {
-            START_COLLECT_TIME(threading, Counters::Threading);
-            threads[threadId] = std::thread([this, step, threadId, &irredundantMatrix, &planBuilder]()
-            {
-                TimeCollector::ThreadInitialize();
-                
-                #ifdef DIFFERENT_MATRICES
-                IrredundantMatrix matrixForThread(_qColsCount);
-                auto currentMatrix = &matrixForThread;
-                #else
-                auto currentMatrix = &irredundantMatrix;
-                #endif
+    for(auto threadId = 0; threadId < planBuilder.getMaxThreadsCount(); ++threadId) {
+        START_COLLECT_TIME(threading, Counters::Threading);
+        threads[threadId] = std::thread([this, threadId, &irredundantMatrix, &planBuilder,
+                                         &sync, &mcv, &wcv, &unblockedStep, &waited]()
+        {
+            TimeCollector::ThreadInitialize();
 
-                auto task = planBuilder.getTask(step, threadId);
+            for(auto step = 0; step < planBuilder.getStepsCount(); ++step) {
+                DEBUG_INFO("Worker " << threadId << ", step: " << step << ", waiting");
 
-                if (task->isEmpty()) {
-                    DEBUG_INFO("Thread " << threadId << " stopped");
-                    return;
+                {
+                    std::unique_lock<std::mutex> locker(sync);
+                    wcv.wait(locker, [step, &unblockedStep]{ return unblockedStep >= step; });
                 }
 
-                DEBUG_INFO("Thread " << threadId << " is working on " <<
-                           task->getFirstSize() << ":" << task->getSecondSize());
+                DEBUG_INFO("Worker " << threadId << ", step: " << step << ", started");
 
-                for(auto i=0; i<task->getFirstSize(); ++i) {
-                    for(auto j=0; j<task->getSecondSize(); ++j) {
-                        processBlock(*currentMatrix,
-                                     _r2Indexes[task->getFirst(i)], _r2Counts[task->getFirst(i)],
-                                     _r2Indexes[task->getSecond(j)], _r2Counts[task->getSecond(j)]);
+                if (threadId < planBuilder.getThreadsCountForStep(step))
+                {
+                    #ifdef DIFFERENT_MATRICES
+                    IrredundantMatrix matrixForThread(_qColsCount);
+                    auto currentMatrix = &matrixForThread;
+                    #else
+                    auto currentMatrix = &irredundantMatrix;
+                    #endif
+
+                    auto task = planBuilder.getTask(step, threadId);
+                    if (!task->isEmpty())
+                    {
+                        DEBUG_INFO("Thread " << threadId << " is working on " <<
+                                   task->getFirstSize() << ":" << task->getSecondSize());
+
+                        for(auto i=0; i<task->getFirstSize(); ++i) {
+                            for(auto j=0; j<task->getSecondSize(); ++j) {
+                                processBlock(*currentMatrix,
+                                             _r2Indexes[task->getFirst(i)], _r2Counts[task->getFirst(i)],
+                                             _r2Indexes[task->getSecond(j)], _r2Counts[task->getSecond(j)]);
+                            }
+                        }
+
+                        #ifdef DIFFERENT_MATRICES
+                        irredundantMatrix.addMatrixConcurrent(std::move(matrixForThread));
+                        #endif
                     }
                 }
 
-                #ifdef DIFFERENT_MATRICES
-                irredundantMatrix.addMatrixConcurrent(std::move(matrixForThread));
-                #endif
+                {
+                    std::unique_lock<std::mutex> locker(sync);
+                    waited -= 1;
+                    locker.unlock();
+                    mcv.notify_one();
+                }
 
-                TimeCollector::ThreadFinalize();
-            });
-            STOP_COLLECT_TIME(threading);
+                DEBUG_INFO("Worker " << threadId << ", step: " << step << ", finished");
+            }
+
+            DEBUG_INFO("Worker " << threadId << " finished");
+            TimeCollector::ThreadFinalize();
+        });
+        STOP_COLLECT_TIME(threading);
+    }
+
+    for(auto step = 0; step < planBuilder.getStepsCount(); ++step) {
+        DEBUG_INFO("Master, step: " << step << ", starting");
+        {
+            std::unique_lock<std::mutex> locker(sync);
+            waited = planBuilder.getMaxThreadsCount();
+            unblockedStep = step;
+            sync.unlock();
+            wcv.notify_all();
         }
+
+        DEBUG_INFO("Master, step: " << step << ", started");
         
-        for(auto threadId = 0; threadId < planBuilder.getThreadsCountForStep(step); ++threadId) {
-            threads[threadId].join();
+        {
+            std::unique_lock<std::mutex> locker(sync);
+            mcv.wait(locker, [&waited]{ return waited == 0; });
         }
+
+        DEBUG_INFO("Master, step: " << step << ", finished");
+    }
+        
+    for(auto threadId = 0; threadId < planBuilder.getMaxThreadsCount(); ++threadId) {
+        threads[threadId].join();
     }
 }
 
