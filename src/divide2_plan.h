@@ -38,7 +38,7 @@ class Divide2Task
     }
 
     int isEmpty() const {
-        return getFirstSize() == 0 || getSecondSize() == 0;
+        return (_first.size() + _second.size()) < 2;
     }
     
  private:
@@ -64,15 +64,16 @@ public:
     }
 
     int getMaxThreadsCount() const {
-        return 1 << _steps;
+        return _width;
     }
 
     int getThreadsCountForStep(int step) const {
-        return 1 << step;
+        return _tasks[step].size();
     }
 
 private:
     int _steps;
+    int _width;
     std::vector<std::vector<Divide2Task>> _tasks;
 };
 

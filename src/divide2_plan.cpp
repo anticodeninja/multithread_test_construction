@@ -15,13 +15,18 @@ Divide2Plan::Divide2Plan(int* counts, int len)
     for (auto i=0; i<len; ++i) {
         task0.append(i, counts[i]);
     }
+
+    auto width = !task0.isEmpty() ? 1 : 0;
+    _width = width;
     
     for (;;) {
         auto hasFuture = false;
         _tasks.push_back(std::vector<Divide2Task>());
 
         step += 1;
-        for (auto chunk=0; chunk < 1 << (step - 1); ++chunk) {
+        width = 0;
+#ifndef MULTITHREAD_DIVIDE2_OPTIMIZED
+        for (auto chunk=0; chunk < _tasks[step-1].size(); ++chunk) {
             auto& parent = _tasks[step - 1][chunk];
                 
             _tasks[step].push_back(Divide2Task());
@@ -37,7 +42,40 @@ Divide2Plan::Divide2Plan(int* counts, int len)
                 task2.append(parent.getSecond(i), counts[parent.getSecond(i)]);
             }
 
+            width += 2;
             hasFuture = hasFuture || !task1.isEmpty() || !task2.isEmpty();
+        }
+#else
+        for (auto chunk=0; chunk < _tasks[step-1].size(); ++chunk) {
+            auto& parent = _tasks[step - 1][chunk];
+            if (parent.isEmpty()) {
+                continue;
+            }
+
+            if (parent.getFirstSize() > 1) {
+                _tasks[step].push_back(Divide2Task());
+                auto& task = _tasks[step][width];
+                for (auto i=0; i<parent.getFirstSize(); ++i) {
+                    task.append(parent.getFirst(i), counts[parent.getFirst(i)]);
+                }
+                width += 1;
+                hasFuture = true;
+            }
+
+            if (parent.getSecondSize() > 1) {
+                _tasks[step].push_back(Divide2Task());
+                auto& task = _tasks[step][width];
+                for (auto i=0; i<parent.getSecondSize(); ++i) {
+                    task.append(parent.getSecond(i), counts[parent.getSecond(i)]);
+                }
+                width += 1;
+                hasFuture = true;
+            }
+        }
+#endif
+
+        if (width > _width) {
+            _width = width;
         }
 
         if (!hasFuture) {

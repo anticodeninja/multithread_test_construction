@@ -19,7 +19,7 @@
 #include "timecollector.h"
 #include "irredundant_matrix.h"
 
-#ifdef MULTITHREAD_DIVIDE2
+#if defined(MULTITHREAD_DIVIDE2) || defined(MULTITHREAD_DIVIDE2_OPTIMIZED)
 #include "divide2_plan.h"
 #elif MULTITHREAD_MASTERWORKER
 #include "masterworker_plan.h"
@@ -235,7 +235,7 @@ void InputMatrix::calcR2Indexes() {
     _r2Counts.push_back(_rowsCount - startIndex);
 }
 
-#ifdef MULTITHREAD_DIVIDE2
+#if defined(MULTITHREAD_DIVIDE2) || defined(MULTITHREAD_DIVIDE2_OPTIMIZED)
 
 void InputMatrix::calculate(IrredundantMatrix &irredundantMatrix)
 {

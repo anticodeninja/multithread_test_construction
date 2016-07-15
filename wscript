@@ -26,6 +26,11 @@ def options(ctx):
                   action='store_true',
                   default=False,
                   help='Use multithread-divide-2 realization of algorithm')
+   ctx.add_option('--mt-d2o', '--use-multithread-divide-2-optimized',
+                  dest="use_multithread_divide_2_optimized",
+                  action='store_true',
+                  default=False,
+                  help='Use multithread-divide-2-optimized realization of algorithm')
    ctx.add_option('--mt-mw', '--use-multithread-master-worker',
                   dest="use_multithread_master_worker",
                   action='store_true',
@@ -73,10 +78,18 @@ def configure(ctx):
    if ctx.options.use_multithread_divide_2:
       ctx.env.append_value('DEFINES', 'MULTITHREAD_DIVIDE2')
 
+   if ctx.options.use_multithread_divide_2_optimized:
+      ctx.env.append_value('DEFINES', 'MULTITHREAD_DIVIDE2_OPTIMIZED')
+
    if ctx.options.use_multithread_master_worker:
       ctx.env.append_value('DEFINES', 'MULTITHREAD_MASTERWORKER')
 
-   if any([ctx.options.use_multithread_divide_2, ctx.options.use_multithread_master_worker]):
+   if any([
+         ctx.options.use_multithread_divide_2,
+         ctx.options.use_multithread_divide_2_optimized,
+         ctx.options.use_multithread_master_worker
+   ]):
+      ctx.env.append_value('DEFINES', 'MULTITHREAD')
       ctx.env.append_value('CXXFLAGS', '-pthread')
       ctx.env.append_value('LINKFLAGS', '-pthread')
       
