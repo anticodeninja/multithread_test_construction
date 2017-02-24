@@ -5,8 +5,6 @@
 #include <chrono>
 #include <iostream>
 
-#include "global_settings.h"
-
 const int GLOBAL_RESERVATION = 1048576;
 const int THREAD_RESERVATION = 1024;
 

@@ -9,7 +9,9 @@ DEFAULT_CONFIGURATIONS = [
    'uim_st', 'uim_st_dm', 'uim_st_vm',
    'uim_mt-d2', 'uim_mt-d2_dm_ll',
    'uim_mt-d2o', 'uim_mt-d2o_dm_ll',
-   'uim_mt-mw', 'uim_mt-mw_dm_ll'
+   'uim_mt-mw', 'uim_mt-mw_dm_ll',
+   'cover_st_df', 'cover_mt_df',
+   'cover_st_bf', 'cover_mt_bf',
 ]
 
 top = '.'
@@ -84,6 +86,7 @@ def build(ctx):
 
       if 'uim' in chunks:
          defines.append('UIM_PROGRAM')
+         files = ['uim_program.cpp', 'input_matrix.cpp', 'irredundant_matrix.cpp', 'row.cpp', 'timecollector.cpp', 'workrow.cpp']
          
          if 'dm' in chunks:
             defines.append('DIFFERENT_MATRICES')
@@ -91,12 +94,15 @@ def build(ctx):
             defines.append('IRREDUNDANT_VECTOR')
 
          if 'mt-d2' in chunks:
+            files.append('divide2_plan.cpp')
             defines.append('MULTITHREAD_DIVIDE2')
             multithreaded = True
          elif 'mt-d2o' in chunks:
+            files.append('divide2_plan.cpp')
             defines.append('MULTITHREAD_DIVIDE2_OPTIMIZED')
             multithreaded = True
-         elif 'mt-mw' in chunks: 
+         elif 'mt-mw' in chunks:
+            files.append('manyworkers_plan.cpp')
             defines.append('MULTITHREAD_MASTERWORKER')
             multithreaded = True
 
@@ -105,15 +111,27 @@ def build(ctx):
          
       elif 'cover' in chunks:
          defines.append('COVER_PROGRAM')
+         files = ['cover_program.cpp', 'timecollector.cpp']
+
+         if 'df' in chunks:
+            defines.append('DEPTH_ALGO')
+         elif 'bf' in chunks:
+            defines.append('BREADTH_ALGO')
+
+         if 'mt' in chunks:
+            multithreaded = True
 
       if multithreaded:
          defines.append('MULTITHREAD')
          cflags.append('-pthread')
          lflags.append('-pthread')
+
+      src_dir = ctx.srcnode.find_dir('src')
+      files = [src_dir.find_node(x) for x in files]
       
       ctx.program(
          features=['cxx', 'cxxprogram'],
-         source=ctx.path.ant_glob('src/*.cpp'),
+         source=files,
          target=configuration,
          use='mylib',
          defines=defines,
