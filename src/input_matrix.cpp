@@ -21,8 +21,8 @@
 
 #if defined(MULTITHREAD_DIVIDE2) || defined(MULTITHREAD_DIVIDE2_OPTIMIZED)
 #include "divide2_plan.h"
-#elif MULTITHREAD_MASTERWORKER
-#include "masterworker_plan.h"
+#elif MULTITHREAD_MANYWORKERS
+#include "manyworkers_plan.h"
 #endif
 
 InputMatrix::InputMatrix(std::istream& input)
@@ -311,7 +311,7 @@ void InputMatrix::calculate(IrredundantMatrix &irredundantMatrix)
     }
 
     for(auto step = 0; step < planBuilder.getStepsCount(); ++step) {
-        DEBUG_INFO("Master, step: " << step << ", starting");
+        DEBUG_INFO("ManyWorkers, step: " << step << ", starting");
         {
             std::unique_lock<std::mutex> locker(sync);
             waited = planBuilder.getMaxThreadsCount();
@@ -320,14 +320,14 @@ void InputMatrix::calculate(IrredundantMatrix &irredundantMatrix)
             wcv.notify_all();
         }
 
-        DEBUG_INFO("Master, step: " << step << ", started");
+        DEBUG_INFO("ManyWorkers, step: " << step << ", started");
         
         {
             std::unique_lock<std::mutex> locker(sync);
             mcv.wait(locker, [&waited]{ return waited == 0; });
         }
 
-        DEBUG_INFO("Master, step: " << step << ", finished");
+        DEBUG_INFO("ManyWorkers, step: " << step << ", finished");
     }
         
     for(auto threadId = 0; threadId < planBuilder.getMaxThreadsCount(); ++threadId) {
@@ -335,7 +335,7 @@ void InputMatrix::calculate(IrredundantMatrix &irredundantMatrix)
     }
 }
 
-#elif MULTITHREAD_MASTERWORKER
+#elif MULTITHREAD_MANYWORKERS
 
 void InputMatrix::calculate(IrredundantMatrix &irredundantMatrix)
 {
@@ -345,7 +345,7 @@ void InputMatrix::calculate(IrredundantMatrix &irredundantMatrix)
 
     std::vector<std::thread> threads(maxThreads);
 
-    MasterWorkerPlan planBuilder(_r2Counts.data(), _r2Counts.size());
+    ManyWorkersPlan planBuilder(_r2Counts.data(), _r2Counts.size());
     
     for(auto threadId = 0; threadId < maxThreads; ++threadId) {
         START_COLLECT_TIME(threading, Counters::Threading);
@@ -398,7 +398,7 @@ void InputMatrix::calculate(IrredundantMatrix &irredundantMatrix)
 
 void InputMatrix::calculate(IrredundantMatrix &irredundantMatrix) {
     #ifdef DIFFERENT_MATRICES
-    IrredundantMatrix matrixForThread IrredundantMatrix(getFeatureWidth());
+    IrredundantMatrix matrixForThread(getFeatureWidth());
     auto currentMatrix = &matrixForThread;
     #else
     auto currentMatrix = &irredundantMatrix;
@@ -407,7 +407,7 @@ void InputMatrix::calculate(IrredundantMatrix &irredundantMatrix) {
     for(size_t i=0; i<_r2Indexes.size()-1; ++i) {
         for(size_t j=i+1; j<_r2Indexes.size(); ++j) {
             #ifdef DIFFERENT_MATRICES
-            matrixForThread.clear()
+            matrixForThread.clear();
             #endif
 
             processBlock(*currentMatrix, _r2Indexes[i], _r2Counts[i], _r2Indexes[j], _r2Counts[j]);

@@ -13,6 +13,8 @@ std::mutex* debugLock;
 
 void printBuildFlags(std::ostream& stream);
 
+#ifdef UIM_PROGRAM
+
 int main(int argc, char** argv)
 {
     debugOutput = new std::ofstream("debug_output.txt");
@@ -59,6 +61,8 @@ int main(int argc, char** argv)
 
     return 0;
 }
+
+#endif
 
 void printBuildFlags(std::ostream& debugOutput) {
     debugOutput << "# BuildFlags" << std::endl;

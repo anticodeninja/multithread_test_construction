@@ -1,14 +1,14 @@
-#ifndef MASTER_WORKER_PLAN_H
-#define MASTER_WORKER_PLAN_H
+#ifndef MANY_WORKERS_PLAN_H
+#define MANY_WORKERS_PLAN_H
 
 #include <vector>
 #include <mutex>
 
-class MasterWorkerTask
+class ManyWorkersTask
 {
  public:
     
-    MasterWorkerTask(int first, int second, int weight, bool isEmpty)
+    ManyWorkersTask(int first, int second, int weight, bool isEmpty)
         : _first(first), _second(second), _weight(weight), _isEmpty(isEmpty) { }
 
     int getFirst() const {
@@ -36,19 +36,19 @@ class MasterWorkerTask
     
 };
 
-class MasterWorkerPlan
+class ManyWorkersPlan
 {
  public:
-    MasterWorkerPlan(int* counts, int len);
-    ~MasterWorkerPlan();
+    ManyWorkersPlan(int* counts, int len);
+    ~ManyWorkersPlan();
 
-    MasterWorkerTask* getTask();
+    ManyWorkersTask* getTask();
 
  private:
     std::mutex _mutex;
-    std::vector<MasterWorkerTask> _tasks;
-    MasterWorkerTask* _emptyTask;
+    std::vector<ManyWorkersTask> _tasks;
+    ManyWorkersTask* _emptyTask;
     int _current;
 };
 
-#endif // MASTER_WORKER_PLAN_H
+#endif // MANY_WORKERS_PLAN_H

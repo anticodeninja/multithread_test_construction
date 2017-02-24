@@ -14,7 +14,7 @@ from scripts.analyzer import AnalyzerServer
 
 class RunTestTask(Task):
     color = 'PINK'
-    vars = ['INPUT_FILE', 'REFERENCE_FILE']
+    vars = ['input_file', 'reference_file']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -29,7 +29,7 @@ class RunTestTask(Task):
     def run(self):
         Logs.pprint('CYAN', "Creating environment...")
         result = self.exec_command('cp %s %s' %
-                                   (self.env.INPUT_FILE, self.executable.parent.make_node('input_data.txt').abspath()))
+                                   (self.env.input_file, self.executable.parent.make_node('input_data.txt').abspath()))
         if result != 0: return result
 
         Logs.pprint('CYAN', "Working...")
@@ -39,10 +39,10 @@ class RunTestTask(Task):
         os.chdir(original_dir)         
         if result != 0: return result
 
-        if self.env.REFERENCE_FILE:
+        if self.env.reference_file:
             Logs.pprint('CYAN', "Reference checking...")
             try:
-                validate_result(self.env.REFERENCE_FILE, self.executable.parent.find_node('output_data.txt').abspath())
+                validate_result(self.env.reference_file, self.executable.parent.find_node('output_data.txt').abspath())
                 Logs.pprint('CYAN', "Everything is ok")
             except Exception as e:
                 Logs.pprint('CYAN', "Error: %s" % str(e))
@@ -134,8 +134,8 @@ class RunTestsContext(BuildContext):
         Options.lockfile = Options.lockfile + '_tests'
         Options.options.out = test_build_path.abspath()
         Options.options.profiling = self.env.profiling
-        Options.options.input_file = os.path.relpath(self.env.INPUT_FILE, self.path.abspath())
-        Options.options.reference_file = os.path.relpath(self.env.REFERENCE_FILE, self.path.abspath())
+        Options.options.input_file = os.path.relpath(self.env.input_file, self.path.abspath())
+        Options.options.reference_file = os.path.relpath(self.env.reference_file, self.path.abspath())
 
         for configuration in configurations:
             for configuration_param in available_params:

@@ -1,30 +1,30 @@
-#include "masterworker_plan.h"
+#include "manyworkers_plan.h"
 
 #include <algorithm>
 
 #include "global_settings.h"
 #include "timecollector.h"
 
-MasterWorkerPlan::MasterWorkerPlan(int* counts, int len)
-    : _emptyTask(new MasterWorkerTask(0, 0, 0, true)),
+ManyWorkersPlan::ManyWorkersPlan(int* counts, int len)
+    : _emptyTask(new ManyWorkersTask(0, 0, 0, true)),
     _current(0)
 {
     START_COLLECT_TIME(planBuilding, Counters::PlanBuilding);
 
     for(auto i=0; i<len-1; ++i) {
         for(auto j=i+1; j<len; ++j) {
-            _tasks.push_back(MasterWorkerTask(i, j, counts[i] * counts[j], false));
+            _tasks.push_back(ManyWorkersTask(i, j, counts[i] * counts[j], false));
         }
     }
 
     std::sort(_tasks.begin(), _tasks.end(), 
-              [](const MasterWorkerTask &a, const MasterWorkerTask &b) -> bool
+              [](const ManyWorkersTask &a, const ManyWorkersTask &b) -> bool
               { 
                   return a.getWeight() > b.getWeight();
               });
 
     DEBUG_BLOCK (
-       getDebugStream() << "MasterWorkerPlan: " << std::endl;
+       getDebugStream() << "ManyWorkersPlan: " << std::endl;
        for(auto i=0; i<_tasks.size(); ++i) {
            auto &task = _tasks[i];
            getDebugStream() << task.getFirst() << "-" << task.getSecond() << ":" << task.getWeight() << std::endl;
@@ -34,12 +34,12 @@ MasterWorkerPlan::MasterWorkerPlan(int* counts, int len)
     STOP_COLLECT_TIME(planBuilding);
 }
 
-MasterWorkerPlan::~MasterWorkerPlan()
+ManyWorkersPlan::~ManyWorkersPlan()
 {
     delete _emptyTask;
 }
 
-MasterWorkerTask* MasterWorkerPlan::getTask()
+ManyWorkersTask* ManyWorkersPlan::getTask()
 {
     START_COLLECT_TIME(crossThreading, Counters::CrossThreading);
     std::unique_lock<std::mutex> lock(_mutex);
