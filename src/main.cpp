@@ -13,7 +13,7 @@ std::mutex* debugLock;
 
 void printBuildFlags(std::ostream& stream);
 
-int main()
+int main(int argc, char** argv)
 {
     debugOutput = new std::ofstream("debug_output.txt");
     debugLock = new std::mutex();
@@ -23,7 +23,7 @@ int main()
     TimeCollector::ThreadInitialize();
     TimeCollectorEntry executionTime(Counters::All);
 
-    std::ifstream input_stream("input_data.txt");
+    std::ifstream input_stream(argv[1]);
     InputMatrix inputMatrix(input_stream);
 
 #ifdef DEBUG_MODE
@@ -35,7 +35,7 @@ int main()
     IrredundantMatrix irredundantMatrix(inputMatrix.getFeatureWidth());
     inputMatrix.calculate(irredundantMatrix);
 
-    std::ofstream resultOutput("output_data.txt");
+    std::ofstream resultOutput(argv[2]);
     irredundantMatrix.printMatrix(resultOutput);
     resultOutput << std::endl;
     irredundantMatrix.printR(resultOutput);

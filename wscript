@@ -11,7 +11,11 @@ out = 'build_directory'
   
 def options(ctx):
    ctx.load('compiler_cxx')
-   
+
+   ctx.add_option('-a', '--aggregate',
+                  action='store_true',
+                  default=False,
+                  help='Run perf tests and aggregate result')
    ctx.add_option('-d', '--debug',
                   action='store_true',
                   default=False,
@@ -135,7 +139,7 @@ def perf(ctx):
 
 def run_tests(ctx):
    ctx.run(
-      True,
+      ctx.options.aggregate,
       available_params = [
          "use_multithread_divide_2",
          "use_multithread_master_worker",
@@ -148,12 +152,10 @@ def run_tests(ctx):
          { "id": "2_mt-d2", "modules": [ "use_multithread_divide_2" ] },
          { "id": "3_mt-d2+vm", "modules": [ "use_multithread_divide_2", "use_vector_for_work_matrices" ] },
          { "id": "4_mt-d2+dm", "modules": [ "use_multithread_divide_2", "use_different_work_matrices" ] },
-         { "id": "5_mt-d2+vm+dm", "modules": [ "use_multithread_divide_2", "use_different_work_matrices", "use_vector_for_work_matrices" ] },
-         { "id": "6_mt-d2+ll", "modules": [ "use_multithread_divide_2", "use_local_lock" ] },
-         { "id": "7_mt-mw", "modules": [ "use_multithread_master_worker" ] },
-         { "id": "8_mt-mw+ll", "modules": [ "use_multithread_master_worker", "use_local_lock" ] },
-         { "id": "7_mt-mw", "modules": [ "use_multithread_master_worker" ] },
-         { "id": "9_mt-mw+ll+dm", "modules": [ "use_multithread_master_worker", "use_local_lock", "use_different_work_matrices" ] },
+         { "id": "5_mt-d2+ll", "modules": [ "use_multithread_divide_2", "use_local_lock" ] },
+         { "id": "6_mt-mw", "modules": [ "use_multithread_master_worker" ] },
+         { "id": "7_mt-mw+ll", "modules": [ "use_multithread_master_worker", "use_local_lock" ] },
+         { "id": "8_mt-mw+ll+dm", "modules": [ "use_multithread_master_worker", "use_local_lock", "use_different_work_matrices" ] },
       ]
    )
 

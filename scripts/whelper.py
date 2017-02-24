@@ -35,7 +35,7 @@ class RunTestTask(Task):
         Logs.pprint('CYAN', "Working...")
         original_dir = os.getcwd()
         os.chdir(self.executable.parent.abspath())
-        result = self.exec_command('%s' % self.executable.abspath())
+        result = self.exec_command('%s input_data.txt output_data.txt' % self.executable.abspath())
         os.chdir(original_dir)         
         if result != 0: return result
 
@@ -128,7 +128,7 @@ class RunTestsContext(BuildContext):
     cmd = 'run_tests'
     fun = 'run_tests'
 
-    def run(self, perf_run, available_params, configurations):
+    def run(self, aggregate, available_params, configurations):
         test_build_path = self.path.make_node(self.bldnode.name + '_tests')
        
         Options.lockfile = Options.lockfile + '_tests'
@@ -145,13 +145,13 @@ class RunTestsContext(BuildContext):
       
             Scripting.run_command('configure')
             Scripting.run_command('build')
-            Scripting.run_command('perf' if perf_run else 'debug')
+            Scripting.run_command('perf' if aggregate else 'debug')
 
             self.exec_command('cp %s %s' % (
                 test_build_path.find_node('current_profile.txt').abspath(),
                 self.bldnode.make_node('%s_profile.txt' % configuration['id']).abspath()))
 
-            if perf_run:
+            if aggregate:
                 self.exec_command('cp %s %s' % (
                     test_build_path.find_node('current_profile_detailed.json').abspath(),
                     self.bldnode.make_node('%s_profile_detailed.json' % configuration['id']).abspath()))
