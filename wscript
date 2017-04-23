@@ -12,11 +12,12 @@ DEFAULT_CONFIGURATIONS = [
    'uim_mt-mw', 'uim_mt-mw_dm_ll',
    'cover_st_df', 'cover_mt_df',
    'cover_st_bf', 'cover_mt_bf',
+   'cover_cuda_bf'
 ]
 
 top = '.'
 out = 'build_directory'
-  
+
 def options(ctx):
    ctx.load('compiler_cxx')
 
@@ -47,19 +48,25 @@ def options(ctx):
 
 def configure(ctx):
    ctx.load('compiler_cxx')
-   ctx.env.append_value('CXXFLAGS', '-std=c++11')
 
    ctx.env.configurations = ctx.options.configuration or DEFAULT_CONFIGURATIONS
+
+   try:
+      ctx.load('cuda', tooldir='./scripts/')
+   except:
+      ctx.env.configurations = [x for x in ctx.env.configurations if 'cuda' not in x]
+
+   ctx.env.append_value('CXXFLAGS', '-std=c++11')
 
    if ctx.options.debug:
       ctx.env.append_value('DEFINES', 'DEBUG_MODE')
       ctx.env.append_value('CXXFLAGS', '-g')
    else:
       ctx.env.append_value('CXXFLAGS', '-O2')
-      
+
    if ctx.options.profiling:
       ctx.env.profiling = ctx.options.profiling
-      ctx.env.append_value('DEFINES', 'TIME_PROFILE=%d' % ctx.options.profiling)   
+      ctx.env.append_value('DEFINES', 'TIME_PROFILE=%d' % ctx.options.profiling)
 
    if ctx.options.input_file:
       input_file = ctx.path.find_resource(ctx.options.input_file)
@@ -80,14 +87,21 @@ def build(ctx):
       chunks = configuration.split('_')
 
       multithreaded = False
+      files = []
       defines = []
-      cflags = []
+      libs = []
       lflags = []
 
       if 'uim' in chunks:
          defines.append('UIM_PROGRAM')
-         files = ['uim_program.cpp', 'input_matrix.cpp', 'irredundant_matrix.cpp', 'row.cpp', 'timecollector.cpp', 'workrow.cpp']
-         
+
+         files.append('uim_program.cpp')
+         files.append('input_matrix.cpp')
+         files.append('irredundant_matrix.cpp')
+         files.append('row.cpp')
+         files.append('timecollector.cpp')
+         files.append('workrow.cpp')
+
          if 'dm' in chunks:
             defines.append('DIFFERENT_MATRICES')
          if 'vm' in chunks:
@@ -108,10 +122,12 @@ def build(ctx):
 
          if 'll' in chunks:
             defines.append('USE_LOCAL_LOCK')
-         
+
       elif 'cover' in chunks:
          defines.append('COVER_PROGRAM')
-         files = ['cover_program.cpp', 'timecollector.cpp']
+
+         files.append('cover_program.cpp')
+         files.append('timecollector.cpp')
 
          if 'df' in chunks:
             defines.append('DEPTH_ALGO')
@@ -121,28 +137,32 @@ def build(ctx):
          if 'mt' in chunks:
             multithreaded = True
 
+         if 'cuda' in chunks:
+            defines.append('CUDA')
+            files.append('cudacover.cu')
+            libs.append('CUDA')
+            libs.append('CUDART')
+
       if multithreaded:
          defines.append('MULTITHREAD')
-         cflags.append('-pthread')
          lflags.append('-pthread')
 
       src_dir = ctx.srcnode.find_dir('src')
       files = [src_dir.find_node(x) for x in files]
-      
+
       ctx.program(
          features=['cxx', 'cxxprogram'],
          source=files,
          target=configuration,
-         use='mylib',
          defines=defines,
-         cflags=cflags,
-         lflags=lflags,
+         use=libs,
+         linkflags=lflags,
       )
 
 def debug(ctx):
    if not ctx.env.input_file:
       ctx.fatal('Input file should be configured for debug command')
-      
+
    build(ctx)
    ctx.add_group()
    ctx.run(True, ctx.env.configurations[0])

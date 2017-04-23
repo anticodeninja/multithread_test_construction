@@ -13,6 +13,16 @@
 #include "cover_generator.h"
 #include "cover_depth_task.h"
 
+#ifdef CUDA
+#include "cudacover.h"
+#endif
+
+#if MULTITHREAD
+#define IF_MULTITHREAD(command) command
+#else
+#define IF_MULTITHREAD(command);
+#endif
+
 uint_fast8_t cover;
 uint_fast32_t rowsCount;
 uint_fast16_t featuresCount;
@@ -31,32 +41,36 @@ std::mutex* generatorLock;
 void readFile(const char* filename);
 
 #if defined(DEPTH_ALGO)
+
 void findInDepth();
 void depthWorker(std::deque<CoverDepthTask*>& taskQueue);
+
 #elif defined(BREADTH_ALGO)
+
 void findInBreadth();
 void breadthWorker();
+
 #else
-    #error Cover algo is not chosen
+
+#error Cover algo is not chosen
+
 #endif
 
 
 #ifdef COVER_PROGRAM
 
 int main(int argc, const char** argv)
-{    
+{
     TimeCollector::Initialize();
     TimeCollector::ThreadInitialize();
     TimeCollectorEntry executionTime(Counters::All);
 
-    readFile(argv[0]);
-    cover = atoi(argv[1]);
+    readFile(argv[1]);
+    cover = atoi(argv[2]);
 
-#ifdef MULTITHREAD
-    resultsLock = new std::mutex();
-#endif
+    IF_MULTITHREAD(resultsLock = new std::mutex());
 
-    results = new ResultSet(atoi(argv[2]));
+    results = new ResultSet(atoi(argv[3]));
     performedTasks = 0;
 
 #if defined(DEPTH_ALGO)
@@ -73,14 +87,12 @@ int main(int argc, const char** argv)
 
     delete results;
 
-#ifdef MULTITHREAD
-    delete resultsLock;
-#endif
+    IF_MULTITHREAD(delete resultsLock);
 
     TimeCollector::ThreadFinalize();
     std::ofstream timeCollectorOutput("current_profile.txt");
     TimeCollector::PrintInfo(timeCollectorOutput);
-    
+
     return 0;
 }
 
@@ -88,7 +100,7 @@ int main(int argc, const char** argv)
 
 void readFile(const char* filename) {
     START_COLLECT_TIME(readingInput, Counters::ReadingInput);
-    
+
     std::ifstream input_stream(filename);
     input_stream >> rowsCount;
     input_stream >> featuresCount;
@@ -101,7 +113,7 @@ void readFile(const char* filename) {
             uim[i * featuresCount + j] = !!temp;
         }
     }
-    
+
     STOP_COLLECT_TIME(readingInput);
 }
 
@@ -130,7 +142,7 @@ void findInDepth() {
 #ifdef MULTITHREAD
     std::vector<std::thread> threads(featuresCount);
     std::vector<std::deque<CoverDepthTask*>> tasks(featuresCount);
-    
+
     for(uint_fast16_t threadId = 0; threadId < featuresCount; ++threadId) {
         tasks[threadId].push_front(CoverDepthTask::createInitTask(threadId, uim, rowsCount, featuresCount));
         START_COLLECT_TIME(threading, Counters::Threading);
@@ -142,7 +154,7 @@ void findInDepth() {
         });
         STOP_COLLECT_TIME(threading);
     }
-    
+
     for(uint_fast16_t threadId = 0; threadId < featuresCount; ++threadId) {
         threads[threadId].join();
     }
@@ -163,7 +175,7 @@ void depthWorker(std::deque<CoverDepthTask*>& tasks) {
     uint_fast32_t weights[featuresCount];
     std::tuple<uint_fast32_t, uint_fast16_t> weights_sorted[featuresCount];
     CoverDepthTask* task;
-    
+
     for(;;) {
         if (tasks.size() == 0) {
             return;
@@ -182,17 +194,13 @@ void depthWorker(std::deque<CoverDepthTask*>& tasks) {
         performedTasks += 1;
 
         if (task->getRowsCount() == 0) {
-#ifdef MULTITHREAD
-            resultsLock->lock();
-#endif
+            IF_MULTITHREAD(resultsLock->lock());
             if (results->append(std::move(result)) != ResultSet::IGNORED) {
                 if (results->isFull()) {
                     costBarrier = results->get(results->getSize() - 1).getCost();
                 }
             }
-#ifdef MULTITHREAD
-            resultsLock->unlock();
-#endif
+            IF_MULTITHREAD(resultsLock->unlock());
             delete task;
             continue;
         }
@@ -202,7 +210,7 @@ void depthWorker(std::deque<CoverDepthTask*>& tasks) {
         }
         mask[task->getColumn()] = 1;
 
-        index = 0;    
+        index = 0;
         for(uint_fast32_t i=0; i<task->getRowsCount(); ++i) {
             uint_fast16_t coverKoef = task->getCovering()[i] + task->getRows()[i][task->getColumn()];
             if (coverKoef < cover) {
@@ -239,15 +247,16 @@ void depthWorker(std::deque<CoverDepthTask*>& tasks) {
 #endif
 
 #ifdef BREADTH_ALGO
+
 void findInBreadth() {
     generator = new CoverGenerator(featuresCount);
-    
+
 #ifdef MULTITHREAD
     generatorLock = new std::mutex();
 
     auto maxThreads = std::thread::hardware_concurrency();;
     std::vector<std::thread> threads(maxThreads);
-    
+
     for(auto threadId = 0; threadId < maxThreads; ++threadId) {
         START_COLLECT_TIME(threading, Counters::Threading);
         threads[threadId] = std::thread([threadId]()
@@ -258,17 +267,52 @@ void findInBreadth() {
         });
         STOP_COLLECT_TIME(threading);
     }
-    
+
     for(auto threadId = 0; threadId < maxThreads; ++threadId) {
         threads[threadId].join();
     }
-    
+
     delete generatorLock;
 #else
     breadthWorker();
 #endif
-    
+
 }
+
+#ifdef CUDA
+
+void breadthWorker() {
+    uint_fast32_t _count;
+
+    cudacover_t* ctx;
+    cudacover_init(&ctx, rowsCount, featuresCount, TAKE_AMOUNT);
+    for(uint_fast32_t i=0; i<rowsCount; ++i) {
+        for(uint_fast16_t j=0; j<featuresCount; ++j) {
+            ctx->lset[i * featuresCount + j] = uim[i * featuresCount + j];
+        }
+    }
+    ctx->cover_koef = cover;
+
+    for(;;) {
+        if (results->isFull()) {
+            return;
+        }
+
+        if ((_count = generator->next((unsigned char*)ctx->block, TAKE_AMOUNT)) == 0) {
+            return;
+        }
+
+        cudacover_check(ctx, TAKE_AMOUNT);
+        for (int i = 0; i < ctx->results_counter; ++i) {
+            Result result = Result((unsigned char*)&ctx->block[ctx->results[i] * featuresCount], featuresCount);
+            results->append(std::move(result));
+        }
+    }
+
+    cudacover_free(&ctx);
+}
+
+#else // NOT CUDA
 
 void breadthWorker() {
     uint_fast32_t _count;
@@ -276,30 +320,23 @@ void breadthWorker() {
     bool coverAll;
     bool workIsEnd;
     uint_fast16_t coverKoef;
-    
+
     for(;;) {
         workIsEnd = false;
-#ifdef MULTITHREAD
-        resultsLock->lock();
-#endif
+
+        IF_MULTITHREAD(resultsLock->lock());
         if (results->isFull()) {
             workIsEnd = true;
         }
-#ifdef MULTITHREAD
-        resultsLock->unlock();
-#endif
+        IF_MULTITHREAD(resultsLock->unlock());
 
         if (workIsEnd) {
             return;
         }
-        
-#ifdef MULTITHREAD
-        generatorLock->lock();
-#endif
+
+        IF_MULTITHREAD(generatorLock->lock());
         _count = generator->next(_tasks, TAKE_AMOUNT);
-#ifdef MULTITHREAD
-        generatorLock->unlock();
-#endif
+        IF_MULTITHREAD(generatorLock->unlock());
 
         if (_count == 0) {
             return;
@@ -331,15 +368,13 @@ void breadthWorker() {
             if (coverAll) {
                 Result result = Result(&_tasks[i * featuresCount], featuresCount);
 
-#ifdef MULTITHREAD
-                resultsLock->lock();
-#endif
+                IF_MULTITHREAD(resultsLock->lock());
                 results->append(std::move(result));
-#ifdef MULTITHREAD
-                resultsLock->unlock();
-#endif
+                IF_MULTITHREAD(resultsLock->unlock());
             }
         }
     }
 }
-#endif
+#endif // NOT CUDA
+
+#endif // BREADTH_ALGO

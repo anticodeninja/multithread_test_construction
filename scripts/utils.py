@@ -4,7 +4,6 @@
 __author__ = 'zzloiz'
 
 import os
-import ipdb
 
 def enumerate_file(filename):
     for line in open(filename, "r"):
