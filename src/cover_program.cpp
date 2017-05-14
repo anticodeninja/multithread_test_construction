@@ -7,6 +7,8 @@
 #include <vector>
 #include <thread>
 
+#include "../argparse-port/argparse.h"
+
 #include "timecollector.h"
 #include "resultset.h"
 
@@ -38,7 +40,7 @@ const uint_fast32_t TAKE_AMOUNT = 1024;
 CoverGenerator* generator;
 std::mutex* generatorLock;
 
-void readFile(const char* filename);
+void readFile(std::istream& input_stream);
 
 #if defined(DEPTH_ALGO)
 
@@ -59,18 +61,57 @@ void breadthWorker();
 
 #ifdef COVER_PROGRAM
 
-int main(int argc, const char** argv)
+int main(int argc, char** argv)
 {
+    parser_t* parser;
+    parser_init(&parser);
+
+    parser_string_arg_t* input_arg;
+    parser_string_add_arg(parser, &input_arg, "input");
+    parser_string_set_help(input_arg, "input file");
+
+    parser_string_arg_t* output_arg;
+    parser_string_add_arg(parser, &output_arg, "output");
+    parser_string_set_help(output_arg, "output file");
+
+    parser_int_arg_t* covering_arg;
+    parser_int_add_arg(parser, &covering_arg, "--covering");
+    parser_int_set_alt(covering_arg, "-c");
+    parser_int_set_help(covering_arg, "amount of column which should be covered");
+    parser_int_set_default(covering_arg, 1);
+
+    parser_int_arg_t* result_limit_arg;
+    parser_int_add_arg(parser, &result_limit_arg, "--result-limit");
+    parser_int_set_alt(result_limit_arg, "-l");
+    parser_int_set_help(result_limit_arg, "maximal amount of result");
+    parser_int_set_default(result_limit_arg, 10);
+
+    parser_flag_arg_t* no_transfer;
+    parser_flag_add_arg(parser, &no_transfer, "--no-transfer");
+    parser_flag_set_help(no_transfer, "no transfer blocks from input file to output");
+
+    if (parser_parse(parser, argc, argv) != PARSER_RESULT_OK) {
+        printf("%s", parser_get_last_err(parser));
+        parser_free(&parser);
+        return 1;
+    }
+    
     TimeCollector::Initialize();
     TimeCollector::ThreadInitialize();
     TimeCollectorEntry executionTime(Counters::All);
 
-    readFile(argv[1]);
-    cover = atoi(argv[2]);
+    if (strcmp("-", input_arg->value) != 0) {
+        std::ifstream input_stream(input_arg->value);
+        readFile(input_stream);
+    } else {
+        readFile(std::cin);
+    }
+    
+    cover = covering_arg->value;
+    results = new ResultSet(result_limit_arg->value);
 
     IF_MULTITHREAD(resultsLock = new std::mutex());
 
-    results = new ResultSet(atoi(argv[3]));
     performedTasks = 0;
 
 #if defined(DEPTH_ALGO)
@@ -81,7 +122,12 @@ int main(int argc, const char** argv)
     #error Cover algo is not chosen
 #endif
 
-    std::cout << *results << std::endl;
+    if (strcmp("-", output_arg->value) != 0) {
+        std::ofstream output_stream(output_arg->value);
+        results->write(output_stream);
+    } else {
+        results->write(std::cout);
+    }
 
     executionTime.Stop();
 
@@ -93,15 +139,15 @@ int main(int argc, const char** argv)
     std::ofstream timeCollectorOutput("current_profile.txt");
     TimeCollector::PrintInfo(timeCollectorOutput);
 
+    parser_free(&parser);
     return 0;
 }
 
 #endif
 
-void readFile(const char* filename) {
+void readFile(std::istream& input_stream) {
     START_COLLECT_TIME(readingInput, Counters::ReadingInput);
 
-    std::ifstream input_stream(filename);
     input_stream >> rowsCount;
     input_stream >> featuresCount;
     uim = new uint_fast8_t[rowsCount * featuresCount];

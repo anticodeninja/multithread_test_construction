@@ -35,7 +35,9 @@ def options(ctx):
                   help='Use time-collector for profiling perfomance')
    ctx.add_option('-c', '--configuration',
                   action='append',
-                  help='Use specific configurations for build')
+                  help='Use specific configurations for build:\n'+
+                       'uim_(st|mt-d2|mt-d2o|mt-mw)_(?dm)_(?vm)_(?ll)\n'+
+                       'cover_(df|bf)_(?mt)_(?cuda)')
 
    ctx.add_option('-i', '--input-file',
                   dest="input_file",
@@ -102,11 +104,6 @@ def build(ctx):
          files.append('timecollector.cpp')
          files.append('workrow.cpp')
 
-         if 'dm' in chunks:
-            defines.append('DIFFERENT_MATRICES')
-         if 'vm' in chunks:
-            defines.append('IRREDUNDANT_VECTOR')
-
          if 'mt-d2' in chunks:
             files.append('divide2_plan.cpp')
             defines.append('MULTITHREAD_DIVIDE2')
@@ -119,6 +116,12 @@ def build(ctx):
             files.append('manyworkers_plan.cpp')
             defines.append('MULTITHREAD_MASTERWORKER')
             multithreaded = True
+
+         if 'dm' in chunks:
+            defines.append('DIFFERENT_MATRICES')
+
+         if 'vm' in chunks:
+            defines.append('IRREDUNDANT_VECTOR')
 
          if 'll' in chunks:
             defines.append('USE_LOCAL_LOCK')

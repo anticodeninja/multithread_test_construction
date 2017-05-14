@@ -146,7 +146,7 @@ void IrredundantMatrix::clear()
     }
 }
 
-void IrredundantMatrix::printMatrix(std::ostream &stream)
+void IrredundantMatrix::write(std::ostream &stream)
 {
     START_COLLECT_TIME(writingOutput, Counters::WritingOutput);
 
@@ -166,7 +166,13 @@ void IrredundantMatrix::printMatrix(std::ostream &stream)
         }
         stream << std::endl;
     }
+    stream << std::endl;
 
+    for(size_t i=0; i < _width; ++i, stream << " ") {
+        stream << _r[i];
+    }
+    stream << std::endl;
+    
     STOP_COLLECT_TIME(writingOutput);
 }
 
@@ -225,7 +231,7 @@ void IrredundantMatrix::clear()
     _rows.clear();
 }
 
-void IrredundantMatrix::printMatrix(std::ostream &stream)
+void IrredundantMatrix::write(std::ostream &stream)
 {
     START_COLLECT_TIME(writingOutput, Counters::WritingOutput);
 
@@ -239,6 +245,12 @@ void IrredundantMatrix::printMatrix(std::ostream &stream)
         }
         stream << std::endl;
     }
+    stream << std::endl;
+
+    for(size_t i=0; i < _width; ++i, stream << " ") {
+        stream << _r[i];
+    }
+    stream << std::endl;
 
     STOP_COLLECT_TIME(writingOutput);
 }
@@ -299,14 +311,3 @@ void IrredundantMatrix::addRowInternal(Row &&row) {
 #endif
 
 #endif
-
-void IrredundantMatrix::printR(std::ostream& stream)
-{
-    START_COLLECT_TIME(writingOutput, Counters::WritingOutput);
-
-    for(size_t i=0; i < _width; ++i, stream << " ") {
-        stream << _r[i];
-    }
-
-    STOP_COLLECT_TIME(writingOutput);
-}

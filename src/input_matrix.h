@@ -12,9 +12,10 @@ class InputMatrix
 public:
     const int DASH = std::numeric_limits<int>::min();
     
-    InputMatrix(std::istream& input);
+    InputMatrix();
     ~InputMatrix();
 
+    void read(std::istream& input);
     void printFeatureMatrix(std::ostream& stream);
     void printImageMatrix(std::ostream& stream);
     void printDebugInfo(std::ostream &stream);

@@ -36,8 +36,7 @@ public:
     void addRowConcurrent(Row&& row, int* r);
     void addMatrixConcurrent(IrredundantMatrix&& matrix);
     void clear();
-    void printMatrix(std::ostream& stream);
-    void printR(std::ostream& stream);
+    void write(std::ostream& stream);
 
     IrredundantMatrix(IrredundantMatrix& matrix) = delete;
     IrredundantMatrix& operator=(IrredundantMatrix& matrix) = delete;

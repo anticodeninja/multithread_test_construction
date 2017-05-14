@@ -25,8 +25,17 @@
 #include "manyworkers_plan.h"
 #endif
 
-InputMatrix::InputMatrix(std::istream& input)
-{
+InputMatrix::InputMatrix() { }
+
+InputMatrix::~InputMatrix() {
+    delete[] _rMatrix;
+    delete[] _r2Matrix;
+    delete[] _qMatrix;
+    delete[] _qMaximum;
+    delete[] _qMinimum;
+}
+
+void InputMatrix::read(std::istream& input) {
     START_COLLECT_TIME(readingInput, Counters::ReadingInput);
     input >> _rowsCount;
 
@@ -50,7 +59,7 @@ InputMatrix::InputMatrix(std::istream& input)
             }
         }
     }
-    
+
     input >> _rColsCount;
     _rMatrix = new int[_rowsCount * _rColsCount];
     for(auto i=0; i<_rowsCount; ++i) {
@@ -58,7 +67,7 @@ InputMatrix::InputMatrix(std::istream& input)
             setImage(i, j, parseValue(input));
         }
     }
-    
+
     _r2Matrix = new int[_rowsCount];
     STOP_COLLECT_TIME(readingInput);
 
@@ -67,14 +76,6 @@ InputMatrix::InputMatrix(std::istream& input)
     sortMatrix();
     calcR2Indexes();
     STOP_COLLECT_TIME(preparingInput);
-}
-
-InputMatrix::~InputMatrix() {
-    delete[] _rMatrix;
-    delete[] _r2Matrix;
-    delete[] _qMatrix;
-    delete[] _qMaximum;
-    delete[] _qMinimum;
 }
 
 void InputMatrix::printFeatureMatrix(std::ostream& stream) {
@@ -128,7 +129,7 @@ void InputMatrix::printDebugInfo(std::ostream& stream) {
         stream << _qMaximum[i] << " ";
     }
     stream << std::endl;
-    
+
     stream << "# R2Indexes" << std::endl;
     for(size_t i=0; i<_r2Counts.size(); ++i) {
         stream << _r2Indexes[i] << " - " << _r2Counts[i] << std::endl;
@@ -321,7 +322,7 @@ void InputMatrix::calculate(IrredundantMatrix &irredundantMatrix)
         }
 
         DEBUG_INFO("ManyWorkers, step: " << step << ", started");
-        
+
         {
             std::unique_lock<std::mutex> locker(sync);
             mcv.wait(locker, [&waited]{ return waited == 0; });
@@ -329,7 +330,7 @@ void InputMatrix::calculate(IrredundantMatrix &irredundantMatrix)
 
         DEBUG_INFO("ManyWorkers, step: " << step << ", finished");
     }
-        
+
     for(auto threadId = 0; threadId < planBuilder.getMaxThreadsCount(); ++threadId) {
         threads[threadId].join();
     }
@@ -346,13 +347,13 @@ void InputMatrix::calculate(IrredundantMatrix &irredundantMatrix)
     std::vector<std::thread> threads(maxThreads);
 
     ManyWorkersPlan planBuilder(_r2Counts.data(), _r2Counts.size());
-    
+
     for(auto threadId = 0; threadId < maxThreads; ++threadId) {
         START_COLLECT_TIME(threading, Counters::Threading);
         threads[threadId] = std::thread([this, threadId, &irredundantMatrix, &planBuilder]()
         {
             TimeCollector::ThreadInitialize();
-            
+
             #ifdef DIFFERENT_MATRICES
             IrredundantMatrix matrixForThread(_qColsCount);
             auto currentMatrix = &matrixForThread;
@@ -361,7 +362,7 @@ void InputMatrix::calculate(IrredundantMatrix &irredundantMatrix)
             #endif
 
             DEBUG_INFO("Thread " << threadId << " started");
-            
+
             for(;;) {
                 auto task = planBuilder.getTask();
                 if (task->isEmpty()) {
@@ -374,7 +375,7 @@ void InputMatrix::calculate(IrredundantMatrix &irredundantMatrix)
                 #ifdef DIFFERENT_MATRICES
                 matrixForThread.clear();
                 #endif
- 
+
                 processBlock(*currentMatrix,
                              _r2Indexes[task->getFirst()], _r2Counts[task->getFirst()],
                              _r2Indexes[task->getSecond()], _r2Counts[task->getSecond()]);
@@ -388,12 +389,12 @@ void InputMatrix::calculate(IrredundantMatrix &irredundantMatrix)
         });
         STOP_COLLECT_TIME(threading);
     }
-    
+
     for(auto threadId = 0; threadId < maxThreads; ++threadId) {
         threads[threadId].join();
     }
 }
-    
+
 #else
 
 void InputMatrix::calculate(IrredundantMatrix &irredundantMatrix) {
@@ -403,7 +404,7 @@ void InputMatrix::calculate(IrredundantMatrix &irredundantMatrix) {
     #else
     auto currentMatrix = &irredundantMatrix;
     #endif
-            
+
     for(size_t i=0; i<_r2Indexes.size()-1; ++i) {
         for(size_t j=i+1; j<_r2Indexes.size(); ++j) {
             #ifdef DIFFERENT_MATRICES
@@ -418,7 +419,7 @@ void InputMatrix::calculate(IrredundantMatrix &irredundantMatrix) {
         }
     }
 }
-    
+
 #endif
 
 void InputMatrix::processBlock(IrredundantMatrix &irredundantMatrix,
@@ -446,7 +447,7 @@ void InputMatrix::processBlock(IrredundantMatrix &irredundantMatrix,
 
 void InputMatrix::calcRVector(int* r, int row1, int row2) {
     auto multiplier1 = 1;
-    auto multiplier2 = 1;            
+    auto multiplier2 = 1;
 
     for(auto k=0; k<_qColsCount; ++k) {
         r[k] = 0;
@@ -463,7 +464,7 @@ void InputMatrix::calcRVector(int* r, int row1, int row2) {
            ? std::tuple<int, int>(_qMinimum[col], _qMaximum[col])
            : std::tuple<int, int>(getFeature(row, col), getFeature(row, col));
     };
-    
+
     for (auto k=0; k<_qColsCount; ++k) {
         auto multiplier = multiplier1 * multiplier2;
         if(getFeature(row1, k) == DASH) {
@@ -472,7 +473,7 @@ void InputMatrix::calcRVector(int* r, int row1, int row2) {
         if(getFeature(row2, k) == DASH) {
             multiplier /= getFeatureValuesCount(k);
         }
-        
+
         auto limit1 = calcLimits(row1, k);
         for (auto i = std::get<0>(limit1); i <= std::get<1>(limit1); ++i) {
             auto limit2 = calcLimits(row2, k);

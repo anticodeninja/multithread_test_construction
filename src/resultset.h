@@ -5,14 +5,14 @@
 #include <vector>
 
 class Result {
-    
+
  public:
-    
+
     Result(uint_fast8_t* mask, uint_fast16_t length) {
         _mask = new uint_fast8_t[length];
         _length = length;
         _cost = 0;
-        
+
         for (uint_fast16_t i = 0; i < length; ++i) {
             _mask[i] = mask[i];
             _cost += mask[i];
@@ -68,12 +68,12 @@ class ResultSet
  public:
 
     const static uint_fast16_t IGNORED = UINT_FAST16_MAX;
-    
+
     ResultSet(uint_fast16_t limit) {
         _limit = limit;
         _size = 0;
         _results = new Result*[_limit];
-        
+
         for (uint_fast16_t i = 0; i < _limit; ++i) {
             _results[i] = nullptr;
         }
@@ -110,14 +110,14 @@ class ResultSet
 
             if (result.isInclude(*_results[index])) {
                 delete _results[index];
-                
+
                 for (uint_fast16_t i = index; i < (_size - 1); ++i) {
                     _results[i] = _results[i+1];
                 }
-                
+
                 _results[_size - 1] = nullptr;
                 _size -= 1;
-                
+
                 continue;
             }
 
@@ -136,23 +136,27 @@ class ResultSet
             if (_results[_limit - 1] != nullptr) {
                 delete _results[_limit - 1];
             }
-            
+
             for (uint_fast16_t i = _limit - 1; i > index; --i) {
                 _results[i] = _results[i-1];
             }
-            
+
             _results[index] = new Result(std::move(result));
             if (_size < _limit) {
                 _size += 1;
             }
-            
+
             return index;
         } else {
             return IGNORED;
         }
     }
 
-    friend std::ostream& operator<<(std::ostream& os, const ResultSet& resultSet);
+    void write(std::ostream& ostream) const {
+        for(uint_fast16_t i=0; i<_size; ++i) {
+            ostream << *_results[i] << std::endl;
+        }
+    }
 
  private:
 
@@ -166,15 +170,7 @@ std::ostream& operator<<(std::ostream& os, const Result& result) {
         os << (int)result._mask[i] << " ";
     }
     os << "| " << result._cost;
-    
-    return os;
-}
 
-std::ostream& operator<<(std::ostream& os, const ResultSet& resultSet) {
-    for(uint_fast16_t i=0; i<resultSet._size; ++i) {
-        std::cout << *resultSet._results[i] << std::endl;
-    }
-    
     return os;
 }
 
