@@ -1,4 +1,4 @@
-#include "divide2_plan.h"
+#include "divide2_plan.hpp"
 
 #include <iostream>
 #include <limits>
@@ -6,7 +6,7 @@
 #include "global_settings.h"
 
 Divide2Plan::Divide2Plan(int* counts, int len)
-{    
+{
     auto step = 0;
     _tasks.push_back(std::vector<Divide2Task>());
     _tasks[step].push_back(Divide2Task());
@@ -18,7 +18,7 @@ Divide2Plan::Divide2Plan(int* counts, int len)
 
     auto width = !task0.isEmpty() ? 1 : 0;
     _width = width;
-    
+
     for (;;) {
         auto hasFuture = false;
         _tasks.push_back(std::vector<Divide2Task>());
@@ -28,10 +28,10 @@ Divide2Plan::Divide2Plan(int* counts, int len)
 #ifndef MULTITHREAD_DIVIDE2_OPTIMIZED
         for (auto chunk=0; chunk < _tasks[step-1].size(); ++chunk) {
             auto& parent = _tasks[step - 1][chunk];
-                
+
             _tasks[step].push_back(Divide2Task());
             _tasks[step].push_back(Divide2Task());
-            
+
             auto& task1 = _tasks[step][2*chunk+0];
             for (auto i=0; i<parent.getFirstSize(); ++i) {
                 task1.append(parent.getFirst(i), counts[parent.getFirst(i)]);
@@ -87,14 +87,14 @@ Divide2Plan::Divide2Plan(int* counts, int len)
 
     DEBUG_BLOCK (
        getDebugStream() << "Divide2Plan: " << std::endl;
-       
+
        for (auto step = 0; step < _steps; ++step) {
            getDebugStream() << step << "| ";
            for (auto chunk=0; chunk < _tasks[step].size(); ++chunk) {
                for (auto i = 0; i < _tasks[step][chunk].getFirstSize(); ++i) {
                    getDebugStream() << _tasks[step][chunk].getFirst(i) << " ";
                }
-               
+
                getDebugStream() << "- ";
 
                for (auto i = 0; i < _tasks[step][chunk].getSecondSize(); ++i) {

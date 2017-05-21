@@ -6,9 +6,9 @@
 #include "../argparse-port/argparse.h"
 
 #include "global_settings.h"
-#include "timecollector.h"
-#include "input_matrix.h"
-#include "irredundant_matrix.h"
+#include "timecollector.hpp"
+#include "input_matrix.hpp"
+#include "irredundant_matrix.hpp"
 
 std::ofstream* debugOutput;
 std::mutex* debugLock;
@@ -49,12 +49,14 @@ int main(int argc, char** argv)
     TimeCollectorEntry executionTime(Counters::All);
 
     InputMatrix inputMatrix;
+    START_COLLECT_TIME(readingInput, Counters::ReadingInput);
     if (strcmp("-", input_arg->value) != 0) {
         std::ifstream input_stream(input_arg->value);
         inputMatrix.read(input_stream);
     } else {
         inputMatrix.read(std::cin);
     }
+    STOP_COLLECT_TIME(readingInput);
 
 #ifdef DEBUG_MODE
     inputMatrix.printFeatureMatrix(getDebugStream());

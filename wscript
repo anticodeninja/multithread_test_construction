@@ -130,6 +130,8 @@ def build(ctx):
          defines.append('COVER_PROGRAM')
 
          files.append('cover_program.cpp')
+         files.append('datafile.cpp')
+         files.append('resultset.cpp')
          files.append('timecollector.cpp')
 
          if 'df' in chunks:

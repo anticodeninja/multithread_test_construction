@@ -4,7 +4,7 @@
 #include <utility>
 #include <iostream>
 
-#include "workrow.h"
+#include "workrow.hpp"
 
 class Row
 {
@@ -24,7 +24,7 @@ public:
     static Row createAsDifference(const WorkRow& w1, const WorkRow& w2);
     bool isInclude(const Row& row) const;
     friend std::ostream& operator<<(std::ostream& stream, const Row& row);
-    
+
     inline int getValue(int index) const {
         return _values[index];
     }

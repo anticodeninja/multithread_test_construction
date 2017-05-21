@@ -1,4 +1,4 @@
-#include "timecollector.h"
+#include "timecollector.hpp"
 
 #include <map>
 #include <thread>

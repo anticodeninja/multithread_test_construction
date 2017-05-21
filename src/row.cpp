@@ -1,10 +1,9 @@
-#include "row.h"
+#include "row.hpp"
 
 #include <stdexcept>
 #include <cmath>
 #include <limits>
 
-#include "workrow.h"
 #include "global_settings.h"
 
 const int SKIP_VALUE = std::numeric_limits<int>::min();

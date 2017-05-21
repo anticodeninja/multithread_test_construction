@@ -1,9 +1,9 @@
-#include "manyworkers_plan.h"
+#include "manyworkers_plan.hpp"
 
 #include <algorithm>
 
 #include "global_settings.h"
-#include "timecollector.h"
+#include "timecollector.hpp"
 
 ManyWorkersPlan::ManyWorkersPlan(int* counts, int len)
     : _emptyTask(new ManyWorkersTask(0, 0, 0, true)),
@@ -17,9 +17,9 @@ ManyWorkersPlan::ManyWorkersPlan(int* counts, int len)
         }
     }
 
-    std::sort(_tasks.begin(), _tasks.end(), 
+    std::sort(_tasks.begin(), _tasks.end(),
               [](const ManyWorkersTask &a, const ManyWorkersTask &b) -> bool
-              { 
+              {
                   return a.getWeight() > b.getWeight();
               });
 

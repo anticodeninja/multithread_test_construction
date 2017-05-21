@@ -1,9 +1,8 @@
 #ifndef COVER_DEPTH_TASK_H
 #define COVER_DEPTH_TASK_H
 
-class CoverDepthTask
-{
-public:
+class CoverDepthTask {
+ public:
     CoverDepthTask(uint_fast16_t column,
                    uint_fast16_t featuresCount,
                    uint_fast8_t* mask,
@@ -11,12 +10,12 @@ public:
                    uint_fast8_t** rows,
                    uint_fast8_t* covering) {
         _column = column;
-        
+
         _mask = new uint_fast8_t[featuresCount];
         for(uint_fast16_t i=0; i<featuresCount; ++i) {
             _mask[i] = mask[i];
         }
-        
+
         _rowsCount = rowsCount;
         _rows = new uint_fast8_t*[rowsCount];
         _covering = new uint_fast8_t[rowsCount];
@@ -34,17 +33,17 @@ public:
         for(uint_fast16_t i=0; i<featuresCount; ++i) {
             mask[i] = 0;
         }
-        
+
         uint_fast8_t* rows[rowsCount];
         uint_fast8_t covering[rowsCount];
         for(uint_fast16_t i=0; i<rowsCount; ++i) {
             rows[i] = &uim[i * featuresCount];
             covering[i] = 0;
         }
-        
+
         return new CoverDepthTask(column, featuresCount, mask, rowsCount, rows, covering);
     }
-    
+
     virtual ~CoverDepthTask() {
         delete [] _mask;
         delete [] _rows;

@@ -9,11 +9,12 @@
 
 #include "../argparse-port/argparse.h"
 
-#include "timecollector.h"
-#include "resultset.h"
+#include "timecollector.hpp"
+#include "datafile.hpp"
+#include "resultset.hpp"
 
-#include "cover_generator.h"
-#include "cover_depth_task.h"
+#include "cover_generator.hpp"
+#include "cover_depth_task.hpp"
 
 #ifdef CUDA
 #include "cudacover.h"
@@ -25,9 +26,9 @@
 #define IF_MULTITHREAD(command);
 #endif
 
+DataFile dataFile;
+
 uint_fast8_t cover;
-uint_fast32_t rowsCount;
-uint_fast16_t featuresCount;
 
 uint_fast8_t* uim;
 uint_fast32_t performedTasks;
@@ -39,8 +40,6 @@ uint_fast16_t costBarrier;
 const uint_fast32_t TAKE_AMOUNT = 1024;
 CoverGenerator* generator;
 std::mutex* generatorLock;
-
-void readFile(std::istream& input_stream);
 
 #if defined(DEPTH_ALGO)
 
@@ -95,20 +94,29 @@ int main(int argc, char** argv)
         parser_free(&parser);
         return 1;
     }
-    
+
     TimeCollector::Initialize();
     TimeCollector::ThreadInitialize();
     TimeCollectorEntry executionTime(Counters::All);
 
-    if (strcmp("-", input_arg->value) != 0) {
-        std::ifstream input_stream(input_arg->value);
-        readFile(input_stream);
+    START_COLLECT_TIME(readingInput, Counters::ReadingInput);
+    if (strcmp("-", parser_string_get_value(input_arg)) != 0) {
+        std::ifstream input_stream(parser_string_get_value(input_arg));
+        dataFile.load(input_stream);
     } else {
-        readFile(std::cin);
+        dataFile.load(std::cin);
     }
-    
-    cover = covering_arg->value;
-    results = new ResultSet(result_limit_arg->value);
+
+    uim = new uint_fast8_t[dataFile.getUimSetLen() * dataFile.getFeaturesLen()];
+    for(auto i=0; i<dataFile.getUimSetLen(); ++i) {
+        for(auto j=0; j<dataFile.getFeaturesLen(); ++j) {
+            uim[i * dataFile.getFeaturesLen() + j] = dataFile.getUimSet()[i * dataFile.getFeaturesLen() + j];
+        }
+    }
+    STOP_COLLECT_TIME(readingInput);
+
+    cover = parser_int_get_value(covering_arg);
+    results = new ResultSet(parser_int_get_value(result_limit_arg));
 
     IF_MULTITHREAD(resultsLock = new std::mutex());
 
@@ -122,15 +130,30 @@ int main(int argc, char** argv)
     #error Cover algo is not chosen
 #endif
 
+    auto featuresLen = dataFile.getFeaturesLen();
+    if (parser_flag_is_filled(no_transfer)) {
+        dataFile.reset();
+    }
+
+    auto tests = new feature_t[results->getSize() * featuresLen];
+    for(auto i=0; i<results->getSize(); ++i) {
+        for(auto j=0; j<featuresLen; ++j) {
+            tests[i * featuresLen + j] = results->get(i).get(j);
+        }
+    }
+
+    dataFile.setTestSetBlock(tests, cover, results->getSize(), featuresLen);
+
     if (strcmp("-", output_arg->value) != 0) {
         std::ofstream output_stream(output_arg->value);
-        results->write(output_stream);
+        dataFile.save(output_stream);
     } else {
-        results->write(std::cout);
+        dataFile.save(std::cout);
     }
 
     executionTime.Stop();
 
+    delete uim;
     delete results;
 
     IF_MULTITHREAD(delete resultsLock);
@@ -145,52 +168,37 @@ int main(int argc, char** argv)
 
 #endif
 
-void readFile(std::istream& input_stream) {
-    START_COLLECT_TIME(readingInput, Counters::ReadingInput);
-
-    input_stream >> rowsCount;
-    input_stream >> featuresCount;
-    uim = new uint_fast8_t[rowsCount * featuresCount];
-
-    int temp;
-    for(uint_fast32_t i=0; i<rowsCount; ++i) {
-        for(uint_fast16_t j=0; j<featuresCount; ++j) {
-            input_stream >> temp;
-            uim[i * featuresCount + j] = !!temp;
-        }
-    }
-
-    STOP_COLLECT_TIME(readingInput);
-}
-
 #ifdef DEPTH_ALGO
 void findInDepth() {
     costBarrier = UINT_FAST16_MAX;
 
-    uint_fast32_t weights[featuresCount];
-    std::tuple<uint_fast32_t, uint_fast16_t> weights_sorted[featuresCount];
+    uint_fast32_t weights[dataFile.getFeaturesLen()];
+    std::tuple<uint_fast32_t, uint_fast16_t> weights_sorted[dataFile.getFeaturesLen()];
 
-    for(uint_fast16_t i=0; i<featuresCount; ++i) {
+    for(uint_fast16_t i=0; i<dataFile.getFeaturesLen(); ++i) {
         weights[i] = 0;
     }
-    for(uint_fast32_t i=0; i<rowsCount; ++i) {
-        for(uint_fast16_t j=0; j<featuresCount; ++j) {
-            weights[j] += uim[i * featuresCount + j];
+    for(uint_fast32_t i=0; i<dataFile.getUimSetLen(); ++i) {
+        for(uint_fast16_t j=0; j<dataFile.getFeaturesLen(); ++j) {
+            weights[j] += uim[i * dataFile.getFeaturesLen() + j];
         }
     }
 
-    for(uint_fast16_t i=0; i<featuresCount; ++i) {
+    for(uint_fast16_t i=0; i<dataFile.getFeaturesLen(); ++i) {
         weights_sorted[i] = std::make_tuple(weights[i], i);
     }
 
-    std::sort(&weights_sorted[0], &weights_sorted[featuresCount]);
+    std::sort(&weights_sorted[0], &weights_sorted[dataFile.getFeaturesLen()]);
 
 #ifdef MULTITHREAD
-    std::vector<std::thread> threads(featuresCount);
-    std::vector<std::deque<CoverDepthTask*>> tasks(featuresCount);
+    std::vector<std::thread> threads(dataFile.getFeaturesLen());
+    std::vector<std::deque<CoverDepthTask*>> tasks(dataFile.getFeaturesLen());
 
-    for(uint_fast16_t threadId = 0; threadId < featuresCount; ++threadId) {
-        tasks[threadId].push_front(CoverDepthTask::createInitTask(threadId, uim, rowsCount, featuresCount));
+    for(uint_fast16_t threadId = 0; threadId < dataFile.getFeaturesLen(); ++threadId) {
+        tasks[threadId].push_front(CoverDepthTask::createInitTask(threadId,
+                                                                  uim,
+                                                                  dataFile.getUimSetLen(),
+                                                                  dataFile.getFeaturesLen()));
         START_COLLECT_TIME(threading, Counters::Threading);
         threads[threadId] = std::thread([threadId, &tasks]()
         {
@@ -201,13 +209,16 @@ void findInDepth() {
         STOP_COLLECT_TIME(threading);
     }
 
-    for(uint_fast16_t threadId = 0; threadId < featuresCount; ++threadId) {
+    for(uint_fast16_t threadId = 0; threadId < dataFile.getFeaturesLen(); ++threadId) {
         threads[threadId].join();
     }
 #else
     std::deque<CoverDepthTask*> tasks;
-    for(uint_fast16_t i=0; i<featuresCount; ++i) {
-        tasks.push_front(CoverDepthTask::createInitTask(i, uim, rowsCount, featuresCount));
+    for(uint_fast16_t i=0; i<dataFile.getFeaturesLen(); ++i) {
+        tasks.push_front(CoverDepthTask::createInitTask(i,
+                                                        uim,
+                                                        dataFile.getUimSetLen(),
+                                                        dataFile.getFeaturesLen()));
     }
     depthWorker(tasks);
 #endif
@@ -215,11 +226,11 @@ void findInDepth() {
 
 void depthWorker(std::deque<CoverDepthTask*>& tasks) {
     uint_fast32_t index = 0;
-    uint_fast8_t* rows[rowsCount];
-    uint_fast8_t covering[rowsCount];
-    uint_fast8_t mask[featuresCount];
-    uint_fast32_t weights[featuresCount];
-    std::tuple<uint_fast32_t, uint_fast16_t> weights_sorted[featuresCount];
+    uint_fast8_t* rows[dataFile.getUimSetLen()];
+    uint_fast8_t covering[dataFile.getUimSetLen()];
+    uint_fast8_t mask[dataFile.getFeaturesLen()];
+    uint_fast32_t weights[dataFile.getFeaturesLen()];
+    std::tuple<uint_fast32_t, uint_fast16_t> weights_sorted[dataFile.getFeaturesLen()];
     CoverDepthTask* task;
 
     for(;;) {
@@ -230,7 +241,7 @@ void depthWorker(std::deque<CoverDepthTask*>& tasks) {
         task = tasks.front();
         tasks.pop_front();
 
-        Result result = Result(task->getMask(), featuresCount);
+        Result result = Result(task->getMask(), dataFile.getFeaturesLen());
 
         if (result.getCost() >= costBarrier) {
             delete task;
@@ -251,7 +262,7 @@ void depthWorker(std::deque<CoverDepthTask*>& tasks) {
             continue;
         }
 
-        for(uint_fast16_t i=0; i<featuresCount; ++i) {
+        for(uint_fast16_t i=0; i<dataFile.getFeaturesLen(); ++i) {
             mask[i] = task->getMask()[i];
         }
         mask[task->getColumn()] = 1;
@@ -266,24 +277,24 @@ void depthWorker(std::deque<CoverDepthTask*>& tasks) {
             }
         }
 
-        for(uint_fast16_t i=0; i<featuresCount; ++i) {
+        for(uint_fast16_t i=0; i<dataFile.getFeaturesLen(); ++i) {
             weights[i] = 0;
         }
         for(uint_fast32_t i=0; i<index; ++i) {
-            for(uint_fast16_t j=0; j<featuresCount; ++j) {
+            for(uint_fast16_t j=0; j<dataFile.getFeaturesLen(); ++j) {
                 weights[j] += rows[i][j];
             }
         }
 
-        for(uint_fast16_t i=0; i<featuresCount; ++i) {
+        for(uint_fast16_t i=0; i<dataFile.getFeaturesLen(); ++i) {
             weights_sorted[i] = std::make_tuple(weights[i], i);
         }
 
-        std::sort(&weights_sorted[0], &weights_sorted[featuresCount]);
+        std::sort(&weights_sorted[0], &weights_sorted[dataFile.getFeaturesLen()]);
 
-        for(uint_fast16_t i=0; i<featuresCount; ++i) {
+        for(uint_fast16_t i=0; i<dataFile.getFeaturesLen(); ++i) {
             if (!mask[i]) {
-                tasks.push_front(new CoverDepthTask(i, featuresCount, mask, index, rows, covering));
+                tasks.push_front(new CoverDepthTask(i, dataFile.getFeaturesLen(), mask, index, rows, covering));
             }
         }
 
@@ -295,7 +306,7 @@ void depthWorker(std::deque<CoverDepthTask*>& tasks) {
 #ifdef BREADTH_ALGO
 
 void findInBreadth() {
-    generator = new CoverGenerator(featuresCount);
+    generator = new CoverGenerator(dataFile.getFeaturesLen());
 
 #ifdef MULTITHREAD
     generatorLock = new std::mutex();
@@ -362,7 +373,7 @@ void breadthWorker() {
 
 void breadthWorker() {
     uint_fast32_t _count;
-    uint_fast8_t _tasks[featuresCount * TAKE_AMOUNT];
+    uint_fast8_t _tasks[dataFile.getFeaturesLen() * TAKE_AMOUNT];
     bool coverAll;
     bool workIsEnd;
     uint_fast16_t coverKoef;
@@ -391,11 +402,11 @@ void breadthWorker() {
         for(uint_fast32_t i=0; i<_count; ++i) {
             coverAll = true;
 
-            for (uint_fast32_t r=0; r<rowsCount; ++r) {
+            for (uint_fast32_t r=0; r<dataFile.getUimSetLen(); ++r) {
                 coverKoef = 0;
 
-                for(uint_fast16_t j=0; j<featuresCount; ++j) {
-                    if (_tasks[i * featuresCount + j] && uim[r * featuresCount + j]) {
+                for(uint_fast16_t j=0; j<dataFile.getFeaturesLen(); ++j) {
+                    if (_tasks[i * dataFile.getFeaturesLen() + j] && uim[r * dataFile.getFeaturesLen() + j]) {
                         coverKoef += 1;
                         if (coverKoef == cover) {
                             break;
@@ -412,7 +423,7 @@ void breadthWorker() {
             performedTasks += 1;
 
             if (coverAll) {
-                Result result = Result(&_tasks[i * featuresCount], featuresCount);
+                Result result = Result(&_tasks[i * dataFile.getFeaturesLen()], dataFile.getFeaturesLen());
 
                 IF_MULTITHREAD(resultsLock->lock());
                 results->append(std::move(result));

@@ -1,4 +1,4 @@
-#include "input_matrix.h"
+#include "input_matrix.hpp"
 
 #include <fstream>
 #include <limits>
@@ -15,14 +15,14 @@
 #endif
 
 #include "global_settings.h"
-#include "workrow.h"
-#include "timecollector.h"
-#include "irredundant_matrix.h"
+#include "workrow.hpp"
+#include "timecollector.hpp"
+#include "irredundant_matrix.hpp"
 
 #if defined(MULTITHREAD_DIVIDE2) || defined(MULTITHREAD_DIVIDE2_OPTIMIZED)
-#include "divide2_plan.h"
+#include "divide2_plan.hpp"
 #elif MULTITHREAD_MANYWORKERS
-#include "manyworkers_plan.h"
+#include "manyworkers_plan.hpp"
 #endif
 
 InputMatrix::InputMatrix() { }
@@ -36,7 +36,6 @@ InputMatrix::~InputMatrix() {
 }
 
 void InputMatrix::read(std::istream& input) {
-    START_COLLECT_TIME(readingInput, Counters::ReadingInput);
     input >> _rowsCount;
 
     input >> _qColsCount;
@@ -69,7 +68,6 @@ void InputMatrix::read(std::istream& input) {
     }
 
     _r2Matrix = new int[_rowsCount];
-    STOP_COLLECT_TIME(readingInput);
 
     START_COLLECT_TIME(preparingInput, Counters::PreparingInput);
     calcR2Matrix();

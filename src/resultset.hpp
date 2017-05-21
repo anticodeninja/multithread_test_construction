@@ -1,44 +1,23 @@
 #ifndef RESULTSET_H
 #define RESULTSET_H
 
-#include <iostream>
 #include <vector>
+
+#include "datafile.hpp"
 
 class Result {
 
- public:
+public:
 
-    Result(uint_fast8_t* mask, uint_fast16_t length) {
-        _mask = new uint_fast8_t[length];
-        _length = length;
-        _cost = 0;
+    Result(uint_fast8_t* mask, uint_fast16_t length);
+    virtual ~Result();
 
-        for (uint_fast16_t i = 0; i < length; ++i) {
-            _mask[i] = mask[i];
-            _cost += mask[i];
-        }
-    }
+    Result(Result&& other);
 
     Result(const Result& result) = delete;
     Result& operator=(const Result&) = delete;
 
-    Result(Result&& other) {
-        _mask = other._mask;
-        _length = other._length;
-        _cost = other._cost;
-
-        other._mask = nullptr;
-    }
-
-    virtual ~Result() {
-        if (_mask != nullptr) {
-            delete [] _mask;
-        }
-    }
-
-    inline uint_fast16_t getCost() const {
-        return _cost;
-    }
+    inline uint_fast16_t getCost() const { return _cost; }
 
     inline bool isInclude(const Result& other) const {
         if (_cost > other._cost) {
@@ -54,7 +33,7 @@ class Result {
         return true;
     }
 
-    friend std::ostream& operator<<(std::ostream& os, const Result& result);
+    inline uint_fast8_t get(feature_size_t id) const { return _mask[id]; }
 
  private:
 
@@ -152,26 +131,11 @@ class ResultSet
         }
     }
 
-    void write(std::ostream& ostream) const {
-        for(uint_fast16_t i=0; i<_size; ++i) {
-            ostream << *_results[i] << std::endl;
-        }
-    }
-
  private:
 
     Result** _results;
     uint_fast16_t _size;
     uint_fast16_t _limit;
 };
-
-std::ostream& operator<<(std::ostream& os, const Result& result) {
-    for (uint_fast16_t i = 0; i < result._length; ++i) {
-        os << (int)result._mask[i] << " ";
-    }
-    os << "| " << result._cost;
-
-    return os;
-}
 
 #endif // RESULTSET_H

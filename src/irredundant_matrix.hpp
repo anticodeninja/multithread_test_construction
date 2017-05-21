@@ -9,7 +9,7 @@
 #include <deque>
 #endif
 
-#include "row.h"
+#include "row.hpp"
 
 #ifdef USE_LOCAL_LOCK
 #include <atomic>
@@ -18,7 +18,7 @@ struct IrredundantRowNode
 {
     IrredundantRowNode() :
     age(0), next(nullptr), sync(ATOMIC_FLAG_INIT) {};
-    
+
     Row data;
     IrredundantRowNode* next;
     int age;
@@ -49,10 +49,10 @@ private:
     IrredundantRowNode _head;
     std::atomic_flag _rSync;
 #else
-    
+
     std::mutex _rowsMutex;
     std::mutex _rMutex;
-    
+
 #ifdef IRREDUNTANT_VECTOR
     std::vector<Row> _rows;
 #else
@@ -63,7 +63,7 @@ private:
 
     int _width;
     std::vector<int> _r;
-    
+
 };
 
 #endif // IRREDUNDANTMATRIX_H

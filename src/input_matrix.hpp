@@ -4,14 +4,14 @@
 #include <iostream>
 #include <vector>
 
-#include "irredundant_matrix.h"
+#include "irredundant_matrix.hpp"
 
 class InputMatrix
 {
 
 public:
     const int DASH = std::numeric_limits<int>::min();
-    
+
     InputMatrix();
     ~InputMatrix();
 
