@@ -7,7 +7,7 @@
 class ManyWorkersTask
 {
  public:
-    
+
     ManyWorkersTask(int first, int second, int weight, bool isEmpty)
         : _first(first), _second(second), _weight(weight), _isEmpty(isEmpty) { }
 
@@ -26,14 +26,14 @@ class ManyWorkersTask
     int isEmpty() const {
         return _isEmpty;
     }
-    
+
  private:
-    
+
     int _first;
     int _second;
     int _weight;
     bool _isEmpty;
-    
+
 };
 
 class ManyWorkersPlan

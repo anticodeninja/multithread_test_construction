@@ -12,10 +12,10 @@ extern "C" {
         int lset_len;
         int features;
         int block_len;
-        
+
         char* lset;
         char* block;
-        
+
         int results_counter;
         int* results;
 
@@ -35,10 +35,11 @@ extern "C" {
                                       int lset_len,
                                       int features,
                                       int block_len);
-    
+
     cudacover_result_t cudacover_check(cudacover_t* ctx,
-                                       int block_len);
-    
+                                       int block_len,
+                                       int thread_block);
+
     cudacover_result_t cudacover_free(cudacover_t** ctx);
 
 #ifdef __cplusplus

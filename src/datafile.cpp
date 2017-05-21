@@ -24,7 +24,7 @@ TestSet::~TestSet() {
     }
 }
 
-void TestSet::setSet(feature_t* testSet, feature_size_t testSetLen) {
+void TestSet::setSet(feature_t* testSet, set_size_t testSetLen) {
     if (_testSet != nullptr) {
         delete [] _testSet;
     }
@@ -186,7 +186,8 @@ void DataFile::setLearningSetBlock(uint32_t* learningSetFeatures,
 }
 
 void DataFile::readLearningSetBlock(std::istream& inputStream) {
-    feature_size_t learningSetLen, featuresLen, pfeaturesLen;
+    set_size_t learningSetLen;
+    feature_size_t featuresLen, pfeaturesLen;
     inputStream >> learningSetLen >> featuresLen >> pfeaturesLen;
 
     feature_t* learningSetFeatures = new feature_t[learningSetLen * featuresLen];

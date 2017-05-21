@@ -6,8 +6,7 @@
 #include <limits>
 #include <map>
 
-typedef uint32_t feature_t;
-typedef uint32_t feature_size_t;
+#include "global_settings.h"
 
 class TestSet {
 
@@ -19,12 +18,12 @@ public:
     TestSet(TestSet&& source);
     TestSet& operator=(const TestSet&) = delete;
 
-    void setSet(feature_t* testSet, feature_size_t testSetLen);
-    inline feature_t get(feature_size_t id) const { return _testSet[id]; }
-    inline feature_size_t getLen() const { return _testSetLen; }
+    void setSet(feature_t* testSet, set_size_t testSetLen);
+    inline feature_t get(set_size_t id) const { return _testSet[id]; }
+    inline set_size_t getLen() const { return _testSetLen; }
 
 private:
-    feature_size_t _testSetLen;
+    set_size_t _testSetLen;
     feature_t* _testSet;
 
 };
@@ -32,7 +31,7 @@ private:
 class DataFile {
 
 public:
-    const int NOT_INITIALIZED = std::numeric_limits<feature_size_t>::max();
+    const int NOT_INITIALIZED = std::numeric_limits<set_size_t>::max();
     const int DASH = std::numeric_limits<feature_t>::max();
 
 public:
@@ -50,35 +49,35 @@ public:
 
     void setLearningSetBlock(feature_t* learningSetFeatures,
                              feature_t* learningSetPfeatures,
-                             feature_size_t learningSetLen,
+                             set_size_t learningSetLen,
                              feature_size_t featuresLen,
-                             feature_size_t pfeaturesLen);
+                             set_size_t pfeaturesLen);
 
     void setRangesBlock(feature_t* rangesMin,
                         feature_t* rangesMax,
                         feature_size_t featuresLen);
 
     void setUimBlock(feature_t* uimSet,
-                     feature_size_t uimSetLen,
+                     set_size_t uimSetLen,
                      feature_size_t featuresLen);
 
     void setUimWeightsBlock(feature_t* uimWeights,
                             feature_size_t featuresLen);
 
     void setRecognizeSetBlock(feature_t* recognizeSetFeatures,
-                              feature_size_t recognizeSetLen,
+                              set_size_t recognizeSetLen,
                               feature_size_t featuresLen);
 
     void setTestSetBlock(feature_t* testSetFeatures,
                          feature_size_t hKoef,
-                         feature_size_t testSetLen,
+                         set_size_t testSetLen,
                          feature_size_t featuresLen);
 
-    inline feature_size_t getLearningSetLen() const { return _learningSetLen; }
+    inline set_size_t getLearningSetLen() const { return _learningSetLen; }
     inline feature_size_t getFeaturesLen() const { return _featuresLen; }
     inline feature_size_t getPfeaturesLen() const { return _pfeaturesLen; }
-    inline feature_size_t getUimSetLen() const { return _uimSetLen; }
-    inline feature_size_t getRecognizeSetLen() const { return _recognizeSetLen; }
+    inline set_size_t getUimSetLen() const { return _uimSetLen; }
+    inline set_size_t getRecognizeSetLen() const { return _recognizeSetLen; }
     inline bool getRangesCalculated() const { return _rangesCalculated; }
 
     inline feature_t* getLearningSetFeatures() const { return _learningSetFeatures; }
@@ -105,11 +104,11 @@ private:
     void writeTestSetBlock(std::ostream& outputStream);
 
 private:
-    feature_size_t _learningSetLen;
+    set_size_t _learningSetLen;
     feature_size_t _featuresLen;
     feature_size_t _pfeaturesLen;
-    feature_size_t _uimSetLen;
-    feature_size_t _recognizeSetLen;
+    set_size_t _uimSetLen;
+    set_size_t _recognizeSetLen;
     bool _rangesCalculated;
 
     feature_t* _learningSetFeatures;

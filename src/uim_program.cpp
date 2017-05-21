@@ -15,8 +15,6 @@ std::mutex* debugLock;
 
 void printBuildFlags(std::ostream& stream);
 
-#ifdef UIM_PROGRAM
-
 int main(int argc, char** argv)
 {
     parser_t* parser;
@@ -40,9 +38,11 @@ int main(int argc, char** argv)
         return 1;
     }
 
+#ifdef DEBUG_MODE
     debugOutput = new std::ofstream("debug_output.txt");
     debugLock = new std::mutex();
     printBuildFlags(getDebugStream());
+#endif
 
     TimeCollector::Initialize();
     TimeCollector::ThreadInitialize();
@@ -94,8 +94,6 @@ int main(int argc, char** argv)
     parser_free(&parser);
     return 0;
 }
-
-#endif
 
 void printBuildFlags(std::ostream& debugOutput) {
     debugOutput << "# BuildFlags" << std::endl;

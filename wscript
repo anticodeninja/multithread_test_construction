@@ -12,7 +12,7 @@ DEFAULT_CONFIGURATIONS = [
    'uim_mt-mw', 'uim_mt-mw_dm_ll',
    'cover_st_df', 'cover_mt_df',
    'cover_st_bf', 'cover_mt_bf',
-   'cover_cuda_bf'
+   'cover_cudabf'
 ]
 
 top = '.'
@@ -66,6 +66,8 @@ def configure(ctx):
    else:
       ctx.env.append_value('CXXFLAGS', '-O2')
 
+   ctx.env.append_value('INCLUDES', ["argparse-port"])
+
    if ctx.options.profiling:
       ctx.env.profiling = ctx.options.profiling
       ctx.env.append_value('DEFINES', 'TIME_PROFILE=%d' % ctx.options.profiling)
@@ -95,8 +97,6 @@ def build(ctx):
       lflags = []
 
       if 'uim' in chunks:
-         defines.append('UIM_PROGRAM')
-
          files.append('uim_program.cpp')
          files.append('input_matrix.cpp')
          files.append('irredundant_matrix.cpp')
@@ -127,26 +127,23 @@ def build(ctx):
             defines.append('USE_LOCAL_LOCK')
 
       elif 'cover' in chunks:
-         defines.append('COVER_PROGRAM')
-
          files.append('cover_program.cpp')
          files.append('datafile.cpp')
          files.append('resultset.cpp')
          files.append('timecollector.cpp')
 
          if 'df' in chunks:
-            defines.append('DEPTH_ALGO')
+            files.append('cover_depthfirst.cpp')
          elif 'bf' in chunks:
-            defines.append('BREADTH_ALGO')
+            files.append('cover_breadthfirst.cpp')
+         elif 'cudabf' in chunks:
+            libs.append('CUDA')
+            libs.append('CUDART')
+            files.append('cover_cuda.cpp')
+            files.append('cover_cuda.cu')
 
          if 'mt' in chunks:
             multithreaded = True
-
-         if 'cuda' in chunks:
-            defines.append('CUDA')
-            files.append('cudacover.cu')
-            libs.append('CUDA')
-            libs.append('CUDART')
 
       if multithreaded:
          defines.append('MULTITHREAD')
@@ -154,6 +151,7 @@ def build(ctx):
 
       src_dir = ctx.srcnode.find_dir('src')
       files = [src_dir.find_node(x) for x in files]
+      files.append("argparse-port/argparse.c")
 
       ctx.program(
          features=['cxx', 'cxxprogram'],

@@ -1,7 +1,5 @@
 #include <stdio.h>
-#include "cudacover.h"
-
-#define THREAD_PER_BLOCK 256
+#include "cover_cuda.h"
 
 __global__
 void kernel(int cover_koef, int features, char *lset, int lset_len, char *block, int block_len, int *results, int *results_counter)
@@ -61,7 +59,8 @@ cudacover_result_t cudacover_init(cudacover_t** ctx,
 }
 
 cudacover_result_t cudacover_check(cudacover_t* ctx,
-                                   int block_len) {
+                                   int block_len,
+                                   int thread_block) {
     if (ctx == NULL) {
         return CUDA_COVER_RESULT_ERR;
     }
@@ -73,8 +72,8 @@ cudacover_result_t cudacover_check(cudacover_t* ctx,
     cudaMemcpy(ctx->__block, ctx->block, block_len * ctx->features * sizeof(char), cudaMemcpyHostToDevice);
     cudaMemcpy(ctx->__results_counter, &ctx->results_counter, sizeof(int), cudaMemcpyHostToDevice);
 
-    dim3 blocks = dim3((block_len + THREAD_PER_BLOCK - 1)/THREAD_PER_BLOCK);
-    dim3 threads = dim3(THREAD_PER_BLOCK);
+    dim3 blocks = dim3((block_len + thread_block - 1)/thread_block);
+    dim3 threads = dim3(thread_block);
     kernel<<<blocks, threads>>>(ctx->cover_koef,
                                 ctx->features,
                                 ctx->__lset,

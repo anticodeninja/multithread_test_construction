@@ -9,7 +9,7 @@ class Result {
 
 public:
 
-    Result(uint_fast8_t* mask, uint_fast16_t length);
+    Result(test_feature_t* mask, uint_fast16_t length);
     virtual ~Result();
 
     Result(Result&& other);
@@ -33,13 +33,13 @@ public:
         return true;
     }
 
-    inline uint_fast8_t get(feature_size_t id) const { return _mask[id]; }
+    inline test_feature_t get(feature_size_t id) const { return _mask[id]; }
 
  private:
 
-    uint_fast8_t* _mask;
-    uint_fast16_t _length;
-    uint_fast16_t _cost;
+    test_feature_t* _mask;
+    feature_size_t _length;
+    set_size_t _cost;
 };
 
 class ResultSet
