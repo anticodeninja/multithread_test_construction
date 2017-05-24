@@ -12,7 +12,8 @@ DEFAULT_CONFIGURATIONS = [
    'uim_mt-mw', 'uim_mt-mw_dm_ll',
    'cover_st_df', 'cover_mt_df',
    'cover_st_bf', 'cover_mt_bf',
-   'cover_cudabf'
+   'cover_cudabf',
+   'cover_legtup'
 ]
 
 top = '.'
@@ -141,6 +142,9 @@ def build(ctx):
             libs.append('CUDART')
             files.append('cover_cuda.cpp')
             files.append('cover_cuda.cu')
+         elif 'legtup' in chunks:
+            files.append('legacy/cover_tuptests.cpp')
+            files.append('legacy/matrix.cpp')
 
          if 'mt' in chunks:
             multithreaded = True
