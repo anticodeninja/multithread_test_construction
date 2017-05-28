@@ -2,6 +2,7 @@
 #define GLOBAL_SETTINGS_H
 
 #include <iostream>
+#include <iomanip>
 #ifdef MULTITHREAD
 #include <mutex>
 #endif
@@ -23,6 +24,10 @@ std::ostream& getDebugStream();
 #ifdef MULTITHREAD
 std::mutex& getDebugStreamLock();
 
+#define INIT_DEBUG_OUTPUT()\
+    std::ostream& getDebugStream() { return std::cout; }\
+    std::mutex debugLock;\
+    std::mutex& getDebugStreamLock() { return debugLock; };
 #define DEBUG_INFO(args)\
     {\
        std::unique_lock<std::mutex> debug_lock(getDebugStreamLock(), std::defer_lock);\
@@ -36,6 +41,8 @@ std::mutex& getDebugStreamLock();
        commands\
     }
 #else
+#define INIT_DEBUG_OUTPUT()\
+    std::ostream& getDebugStream() { return std::cout; };
 #define DEBUG_INFO(args) getDebugStream() << args << std::endl;
 #define DEBUG_BLOCK(commands) commands
 #endif
@@ -43,6 +50,7 @@ std::mutex& getDebugStreamLock();
 #else
 #define DEBUG_INFO(args);
 #define DEBUG_BLOCK(commands);
+#define INIT_DEBUG_OUTPUT();
 #endif
 
 #endif // GLOBAL_SETTINGS_H

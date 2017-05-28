@@ -1,6 +1,7 @@
 #include <algorithm>
-#include <deque>
 #include <argparse.h>
+#include <deque>
+#include <stdexcept>
 
 #ifdef MULTITHREAD
 #include <thread>
@@ -16,112 +17,161 @@ public:
     Context(test_feature_t* uimSet,
             set_size_t uimSetLen,
             feature_size_t featuresLen,
-            ResultSet& resultSet,
+            ResultSet* resultSet,
+#ifdef MULTITHREAD
+            std::mutex* resultsLock,
+#endif // MULTITHREAD
             set_size_t limit,
-            feature_size_t cover) :
-        _uimSet(uimSet),
-        _uimSetLen(uimSetLen),
-        _featuresLen(featuresLen),
+            feature_size_t needCover) :
         _resultSet(resultSet),
+#ifdef MULTITHREAD
+        _resultsLock(resultsLock),
+#endif // MULTITHREAD
         _limit(limit),
-        _cover(cover),
-        _costBarrier(std::numeric_limits<set_size_t>::max()) { }
+        _needCover(needCover) {
 
-    inline test_feature_t* getUimSet() const { return _uimSet; }
-    inline set_size_t getUimSetLen() const { return _uimSetLen; }
-    inline feature_size_t getFeaturesLen() const { return _featuresLen; }
-    inline ResultSet& getResultSet() const { return _resultSet; }
+        _uimSets = new test_feature_t*[featuresLen+1];
+        _uimSets[0] = uimSet;
+        for (auto i = 1; i <= featuresLen; ++i) {
+            _uimSets[i] = new test_feature_t[featuresLen * uimSetLen];
+        }
+
+        _uimSetLens = new set_size_t[featuresLen+1];
+        _uimSetLens[0] = uimSetLen;
+
+        _featuresLens = new feature_size_t[featuresLen+1];
+        _featuresLens[0] = featuresLen;
+
+        _currentColumns = new feature_size_t*[featuresLen+1];
+        _currentCovers = new feature_size_t*[featuresLen+1];
+
+        for (auto i = 0; i <= featuresLen; ++i) {
+            _currentColumns[i] = new feature_size_t[featuresLen];
+            _currentCovers[i] = new feature_size_t[uimSetLen];
+        }
+
+        for (auto j = 0; j < featuresLen; ++j) {
+            _currentColumns[0][j] = j;
+        }
+        std::fill(&_currentCovers[0][0], &_currentCovers[0][uimSetLen], 0);
+    }
+
+    ~Context() {
+        if (_uimSets == nullptr) {
+            return;
+        }
+
+        for (auto i = 1; i <= _featuresLens[0]; ++i) {
+            delete [] _uimSets[i];
+        }
+
+        for (auto i = 0; i <= _featuresLens[0]; ++i) {
+            delete [] _currentColumns[i];
+            delete [] _currentCovers[i];
+        }
+
+        delete [] _uimSets;
+        delete [] _uimSetLens;
+        delete [] _featuresLens;
+        delete [] _currentColumns;
+        delete [] _currentCovers;
+    }
+
+    Context(Context&& another) :
+        _uimSets(another._uimSets),
+        _uimSetLens(another._uimSetLens),
+        _featuresLens(another._featuresLens),
+        _currentColumns(another._currentColumns),
+        _currentCovers(another._currentCovers),
+        _resultSet(another._resultSet),
+#ifdef MULTITHREAD
+        _resultsLock(another._resultsLock),
+#endif // MULTITHREAD
+        _limit(another._limit),
+        _needCover(another._needCover)
+        {
+        another._uimSets = nullptr;
+        another._uimSetLens = nullptr;
+        another._featuresLens = nullptr;
+        another._currentColumns = nullptr;
+        another._currentCovers = nullptr;
+    }
+
+    Context(const Context&) = delete;
+    Context& operator=(const Context&) = delete;
+
+    Context clone(feature_size_t depth) {
+        auto temp = Context(_uimSets[0],
+                            _uimSetLens[0],
+                            _featuresLens[0],
+                            _resultSet,
+#ifdef MULTITHREAD
+                            _resultsLock,
+#endif // MULTITHREAD
+                            _limit,
+                            _needCover);
+
+        for (auto i = 1; i <= depth; ++i) {
+            for (auto j = 0; j < getUimSetLen(i) * getFeaturesLen(i); ++j) {
+                temp._uimSets[i][j] = _uimSets[i][j];
+            }
+            temp._uimSetLens[i] = _uimSetLens[i];
+            temp._featuresLens[i] = _featuresLens[i];
+            for (auto j = 0; j < _featuresLens[i]; ++j) {
+                temp._currentColumns[i][j] = _currentColumns[i][j];
+                temp._currentCovers[i][j] = _currentCovers[i][j];
+            }
+        }
+
+        return temp;
+    }
+
+    inline test_feature_t* getUimSet(feature_size_t depth) { return _uimSets[depth]; }
+    inline set_size_t& getUimSetLen(feature_size_t depth) { return _uimSetLens[depth]; }
+    inline feature_size_t& getFeaturesLen(feature_size_t depth) { return _featuresLens[depth]; }
+    inline feature_size_t* getCurrentColumns(feature_size_t depth) { return _currentColumns[depth]; }
+    inline feature_size_t* getCurrentCover(feature_size_t depth) { return _currentCovers[depth]; }
+
+    inline ResultSet& getResultSet() const { return *_resultSet; }
     inline set_size_t getLimit() const { return _limit; }
-    inline feature_size_t getCover() const { return _cover; }
-    inline set_size_t getCostBarrier() const { return _costBarrier; }
-    inline void setCostBarrier(set_size_t value) { _costBarrier = value; }
+    inline feature_size_t getNeedCover() const { return _needCover; }
 
 #ifdef MULTITHREAD
-    inline std::mutex& getResultsLock() { return _resultsLock; }
+    inline std::mutex& getResultsLock() const { return *_resultsLock; }
 #endif
 
 private:
-    test_feature_t* _uimSet;
-    set_size_t _uimSetLen;
-    feature_size_t _featuresLen;
-    ResultSet& _resultSet;
+    test_feature_t** _uimSets;
+    set_size_t* _uimSetLens;
+    feature_size_t* _featuresLens;
+    feature_size_t** _currentColumns;
+    feature_size_t** _currentCovers;
+
+    ResultSet* _resultSet;
     set_size_t _limit;
-    feature_size_t _cover;
-    set_size_t _costBarrier;
+    feature_size_t _needCover;
 #ifdef MULTITHREAD
-    std::mutex _resultsLock;
+    std::mutex* _resultsLock;
 #endif
 };
 
-class CoverDepthTask final {
- public:
-    CoverDepthTask(feature_size_t column,
-                   feature_size_t featuresCount,
-                   test_feature_t* mask,
-                   set_size_t rowsCount,
-                   test_feature_t** rows,
-                   feature_size_t* covering) {
-        _column = column;
+void depthWorker(Context& context,
+                 feature_size_t depth,
+                 feature_size_t current);
 
-        _mask = new test_feature_t[featuresCount];
-        for (auto i=0; i<featuresCount; ++i) {
-            _mask[i] = mask[i];
-        }
+void calcPriorities(Context& context,
+                    feature_size_t depth,
+                    bool& outUseAll,
+                    feature_size_t* outPriorities,
+                    feature_size_t& outPrioritiesLen);
 
-        _rowsCount = rowsCount;
-        _rows = new test_feature_t*[rowsCount];
-        _covering = new feature_size_t[rowsCount];
-        for (auto i=0; i<rowsCount; ++i) {
-            _rows[i] = rows[i];
-            _covering[i] = covering[i];
-        }
-    }
+void propagate(Context& context,
+               feature_size_t depth,
+               feature_size_t* columns,
+               feature_size_t columnsLen);
 
-    static CoverDepthTask* createInitTask(feature_size_t column,
-                                          test_feature_t* uim,
-                                          set_size_t rowsCount,
-                                          feature_size_t featuresCount) {
-        test_feature_t mask[featuresCount];
-        for (auto i=0; i<featuresCount; ++i) {
-            mask[i] = 0;
-        }
-
-        test_feature_t* rows[rowsCount];
-        feature_size_t covering[rowsCount];
-        for (auto i=0; i<rowsCount; ++i) {
-            rows[i] = &uim[i * featuresCount];
-            covering[i] = 0;
-        }
-
-        return new CoverDepthTask(column, featuresCount, mask, rowsCount, rows, covering);
-    }
-
-    virtual ~CoverDepthTask() {
-        delete [] _mask;
-        delete [] _rows;
-        delete [] _covering;
-    }
-
-    CoverDepthTask(const CoverDepthTask& result) = delete;
-    CoverDepthTask& operator=(const CoverDepthTask&) = delete;
-
-    inline feature_size_t getColumn() const { return _column; }
-    inline test_feature_t* getMask() const { return _mask; }
-
-    inline set_size_t getRowsCount() const { return _rowsCount; }
-    inline test_feature_t** getRows() const { return _rows; }
-    inline feature_size_t* getCovering() const { return _covering; }
-
-private:
-    feature_size_t _column;
-    test_feature_t* _mask;
-
-    set_size_t _rowsCount;
-    test_feature_t** _rows;
-    feature_size_t* _covering;
-};
-
-void depthWorker(Context& context, std::deque<CoverDepthTask*>& taskQueue);
+bool checkAndAppend(Context& context,
+                    feature_size_t depth);
 
 void initArgParser(parser_t* parser)
 {
@@ -131,146 +181,316 @@ void findCovering(feature_t* uim,
                   set_size_t uimSetLen,
                   feature_size_t featuresLen,
                   ResultSet& resultSet,
-                  int limit,
-                  int cover) {
-    auto nuim = new test_feature_t[uimSetLen * featuresLen];
+                  set_size_t limit,
+                  feature_size_t needCover) {
+
+    test_feature_t nuim[uimSetLen * featuresLen];
     for (auto i=0; i<uimSetLen; ++i) {
         for (auto j=0; j<featuresLen; ++j) {
             nuim[i*featuresLen+j] = !!uim[i*featuresLen+j];
         }
     }
 
-    set_size_t weights[featuresLen];
-    std::tuple<set_size_t, feature_size_t> weights_sorted[featuresLen];
-
-    for (auto i=0; i<featuresLen; ++i) {
-        weights[i] = 0;
-    }
-    for (auto i=0; i<uimSetLen; ++i) {
-        for (auto j=0; j<featuresLen; ++j) {
-            weights[j] += uim[i * featuresLen + j];
-        }
-    }
-
-    for (auto i=0; i<featuresLen; ++i) {
-        weights_sorted[i] = std::make_tuple(weights[i], i);
-    }
+    IF_MULTITHREAD(std::mutex resultsLock);
 
     Context context(nuim,
                     uimSetLen,
                     featuresLen,
-                    resultSet,
+                    &resultSet,
+#ifdef MULTITHREAD
+                    &resultsLock,
+#endif
                     limit,
-                    cover);
+                    needCover);
 
-    std::sort(&weights_sorted[0], &weights_sorted[featuresLen]);
+    feature_size_t depth = 0;
+    bool useAll;
+    feature_size_t priorities[featuresLen];
+    feature_size_t prioritiesLen;
+
+    for (;;) {
+        calcPriorities(context, depth, useAll, priorities, prioritiesLen);
+        if (useAll) {
+            propagate(context, depth, priorities, prioritiesLen);
+            depth += 1;
+        } else {
+            break;
+        }
+    }
+
+    if (!checkAndAppend(context, depth)) {
+        auto stepFeatureLen = context.getFeaturesLen(depth);
 
 #ifdef MULTITHREAD
-    std::vector<std::thread> threads(featuresLen);
-    std::vector<std::deque<CoverDepthTask*>> tasks(featuresLen);
+        std::vector<std::thread> threads(featuresLen);
 
-    for (auto threadId = 0; threadId < featuresLen; ++threadId) {
-        tasks[threadId].push_front(CoverDepthTask::createInitTask(threadId,
-                                                                  nuim,
-                                                                  uimSetLen,
-                                                                  featuresLen));
-        START_COLLECT_TIME(threading, Counters::Threading);
-        threads[threadId] = std::thread([threadId, &context, &tasks]()
-        {
-            TimeCollector::ThreadInitialize();
-            depthWorker(context, tasks[threadId]);
-            TimeCollector::ThreadFinalize();
-        });
-        STOP_COLLECT_TIME(threading);
-    }
+        for (auto threadId = 0; threadId < stepFeatureLen; ++threadId) {
+            START_COLLECT_TIME(threading, Counters::Threading);
+            threads[threadId] = std::thread([threadId, &context, depth, &priorities]()
+                                            {
+                                                TimeCollector::ThreadInitialize();
+                                                auto thContext = context.clone(depth);
+                                                depthWorker(thContext, depth, priorities[threadId]);
+                                                TimeCollector::ThreadFinalize();
+                                            });
+            STOP_COLLECT_TIME(threading);
+        }
 
-    for (auto threadId = 0; threadId < context.getFeaturesLen(); ++threadId) {
-        threads[threadId].join();
-    }
+        for (auto threadId = 0; threadId < stepFeatureLen; ++threadId) {
+            threads[threadId].join();
+        }
 #else
-    std::deque<CoverDepthTask*> tasks;
-    for (auto i=0; i<featuresLen; ++i) {
-        tasks.push_front(CoverDepthTask::createInitTask(i,
-                                                        nuim,
-                                                        uimSetLen,
-                                                        featuresLen));
-    }
-    depthWorker(context, tasks);
+        for (auto i=0; i<stepFeatureLen; ++i) {
+            depthWorker(context, depth, priorities[i]);
+        }
 #endif
+    }
 }
 
-void depthWorker(Context& context, std::deque<CoverDepthTask*>& tasks) {
-    test_feature_t index = 0;
-    test_feature_t* rows[context.getUimSetLen()];
-    feature_size_t covering[context.getUimSetLen()];
-    test_feature_t mask[context.getFeaturesLen()];
-    set_size_t weights[context.getFeaturesLen()];
-    std::tuple<set_size_t, feature_size_t> weights_sorted[context.getFeaturesLen()];
-    CoverDepthTask* task;
+void calcPriorities(Context& context,
+                    feature_size_t depth,
+                    bool& outUseAll,
+                    feature_size_t* outPriorities,
+                    feature_size_t& outPrioritiesLen) {
 
-    for(;;) {
-        if (tasks.size() == 0) {
-            return;
+    auto needCover = context.getNeedCover();
+    auto uim = context.getUimSet(depth);
+    auto uimSetLen = context.getUimSetLen(depth);
+    auto featuresLen = context.getFeaturesLen(depth);
+    auto currentCover = context.getCurrentCover(depth);
+    auto currentColumns = context.getCurrentColumns(depth);
+
+    DEBUG_BLOCK
+        (
+         getDebugStream() << "Calc priorities, input " << std::endl;
+
+         for (auto j=0; j<featuresLen; ++j) {
+             getDebugStream() << std::setw(3) << currentColumns[j];
+         }
+         getDebugStream() << std::endl;
+
+         for (auto i=0; i<uimSetLen; ++i) {
+             for (auto j=0; j<featuresLen; ++j) {
+                 getDebugStream() << std::setw(3) << (uim[i* featuresLen + j] ? 1 : 0);
+             }
+             getDebugStream() << "  " << currentCover[i] << std::endl;
+         }
+         getDebugStream() << std::endl;
+         );
+
+    // Precalculate some common variables
+    bool useMarkedColumns = false;
+    bool markedColumns[featuresLen];
+    set_size_t weights[featuresLen];
+    std::fill(&markedColumns[0], &markedColumns[featuresLen], false);
+    std::fill(&weights[0], &weights[featuresLen], false);
+
+    for (auto i=0; i<uimSetLen; ++i) {
+        feature_size_t count = 0;
+        for (auto j=0; j<featuresLen; ++j) {
+            count += uim[i * featuresLen + j];
+            weights[j] += uim[i * featuresLen + j];
         }
 
-        task = tasks.front();
-        tasks.pop_front();
+        count += currentCover[i];
 
-        Result result = Result(task->getMask(), context.getFeaturesLen());
-
-        if (result.getCost() >= context.getCostBarrier()) {
-            delete task;
-            continue;
-        }
-
-        if (task->getRowsCount() == 0) {
-            IF_MULTITHREAD(context.getResultsLock().lock());
-            if (context.getResultSet().append(std::move(result)) != ResultSet::IGNORED) {
-                if (context.getResultSet().isFull()) {
-                    context.setCostBarrier(context.getResultSet().get(context.getResultSet().getSize() - 1).getCost());
+        if (count < needCover) {
+            throw std::runtime_error("The covering cannot be found for the input data");
+        } else if (count == needCover) {
+            useMarkedColumns = true;
+            for (auto j=0; j<featuresLen; ++j) {
+                if (uim[i * featuresLen + j]) {
+                    markedColumns[j] = true;
                 }
             }
-            IF_MULTITHREAD(context.getResultsLock().unlock());
-            delete task;
+        }
+    }
+
+    outUseAll = useMarkedColumns;
+    if (useMarkedColumns) {
+        outPrioritiesLen = 0;
+        for (auto j=0; j<featuresLen; ++j) {
+            if (markedColumns[j]) {
+                outPriorities[outPrioritiesLen++] = j;
+            }
+        }
+    } else {
+        std::tuple<set_size_t, feature_size_t> weights_sorted[featuresLen];
+        for (auto j=0; j<featuresLen; ++j) {
+            weights_sorted[j] = std::make_tuple(weights[j], j);
+        }
+        std::sort(&weights_sorted[0], &weights_sorted[featuresLen]);
+        std::reverse(&weights_sorted[0], &weights_sorted[featuresLen]);
+
+        for (auto j=0; j<featuresLen; ++j) {
+            outPriorities[j] = std::get<1>(weights_sorted[j]);
+        }
+        outPrioritiesLen = featuresLen;
+    }
+
+    DEBUG_BLOCK
+        (
+         getDebugStream() << "Calc priorities, useAll: " << outUseAll << ", c: ";
+         for (auto j=0; j<outPrioritiesLen; ++j) {
+             getDebugStream() << currentColumns[outPriorities[j]] << " ";
+         }
+         getDebugStream() << std::endl << std::endl;
+         );
+}
+
+void propagate(Context& context,
+               feature_size_t depth,
+               feature_size_t* columns,
+               feature_size_t columnsLen) {
+    auto needCover = context.getNeedCover();
+
+    auto uim = context.getUimSet(depth);
+    auto& uimSetLen = context.getUimSetLen(depth);
+    auto& featuresLen = context.getFeaturesLen(depth);
+    auto currentColumns = context.getCurrentColumns(depth);
+    auto currentCover = context.getCurrentCover(depth);
+
+    auto newUim = context.getUimSet(depth+1);
+    auto& newUimSetLen = context.getUimSetLen(depth+1);
+    auto& newFeaturesLen = context.getFeaturesLen(depth+1);
+    auto newCurrentColumns = context.getCurrentColumns(depth+1);
+    auto newCurrentCover = context.getCurrentCover(depth+1);
+
+    DEBUG_BLOCK
+        (
+         getDebugStream() << "propagagate ";
+         for (auto j=0; j<columnsLen; ++j) {
+             getDebugStream() << currentColumns[columns[j]] << ' ' << std::endl;
+         }
+         getDebugStream() << std::endl;
+
+         for (auto j=0; j<featuresLen; ++j) {
+             getDebugStream() << std::setw(3) << currentColumns[j];
+         }
+         getDebugStream() << std::endl;
+
+         for (auto i=0; i<uimSetLen; ++i) {
+             for (auto j=0; j<featuresLen; ++j) {
+                 getDebugStream() << std::setw(3) << (uim[i* featuresLen + j] ? 1 : 0);
+             }
+             getDebugStream() << "  " << currentCover[i] << std::endl;
+         }
+         getDebugStream() << std::endl;
+         );
+
+    newFeaturesLen = featuresLen - columnsLen;
+
+    feature_size_t cs = 0;
+    feature_size_t cj = 0;
+    for (auto j=0; j<featuresLen; ++j) {
+        if (cs < columnsLen && columns[cs] == j) {
+            cs += 1;
             continue;
         }
 
-        for (auto i=0; i<context.getFeaturesLen(); ++i) {
-            mask[i] = task->getMask()[i];
-        }
-        mask[task->getColumn()] = 1;
+        newCurrentColumns[cj++] = currentColumns[j];
+    }
 
-        index = 0;
-        for (auto i=0; i<task->getRowsCount(); ++i) {
-            auto coverKoef = task->getCovering()[i] + task->getRows()[i][task->getColumn()];
-            if (coverKoef < context.getCover()) {
-                rows[index] = task->getRows()[i];
-                covering[index] = coverKoef;
-                index += 1;
+    newUimSetLen = 0;
+    for (auto i=0; i<uimSetLen; ++i) {
+        feature_size_t count = 0;
+        for (auto j = 0; j < columnsLen; ++j) {
+            count += uim[i * featuresLen + columns[j]];
+        }
+        count += currentCover[i];
+
+        if (count < needCover) {
+            newCurrentCover[newUimSetLen] = count;
+
+            feature_size_t cs = 0;
+            feature_size_t cj = 0;
+            for (auto j=0; j<featuresLen; ++j) {
+                if (cs < columnsLen && columns[cs] == j) {
+                    cs += 1;
+                    continue;
+                }
+
+                newUim[newFeaturesLen * newUimSetLen + (cj++)] = uim[i * featuresLen + j];
             }
+
+            newUimSetLen += 1;
+        }
+    }
+
+    DEBUG_BLOCK
+        (
+         getDebugStream() << "propagate result" << std::endl;
+
+         for (auto j=0; j<newFeaturesLen; ++j) {
+             getDebugStream() << std::setw(3) << newCurrentColumns[j];
+         }
+         getDebugStream() << std::endl;
+
+         for (auto i=0; i<newUimSetLen; ++i) {
+             for (auto j=0; j<newFeaturesLen; ++j) {
+                 getDebugStream() << std::setw(3) << (newUim[i* newFeaturesLen + j] ? 1 : 0);
+             }
+             getDebugStream() << "  " << newCurrentCover[i] << std::endl;
+         }
+         getDebugStream() << std::endl;
+         );
+}
+
+bool checkAndAppend(Context& context,
+                    feature_size_t depth) {
+
+    if (context.getUimSetLen(depth) == 0) {
+        auto fullFeatureLen = context.getFeaturesLen(0);
+        auto featureLen = context.getFeaturesLen(depth);
+        auto currentColumns = context.getCurrentColumns(depth);
+
+        test_feature_t covering[fullFeatureLen];
+        std::fill(&covering[0], &covering[fullFeatureLen], 1);
+        for (auto j = 0; j < featureLen; ++j) {
+            covering[currentColumns[j]] = 0;
         }
 
-        for (auto i=0; i<context.getFeaturesLen(); ++i) {
-            weights[i] = 0;
-        }
-        for (auto i=0; i<index; ++i) {
-            for (auto j=0; j<context.getFeaturesLen(); ++j) {
-                weights[j] += rows[i][j];
-            }
-        }
+        IF_MULTITHREAD(context.getResultsLock().lock());
+        context.getResultSet().append(fullFeatureLen - featureLen, covering);
+        IF_MULTITHREAD(context.getResultsLock().unlock());
+        return true;
+    }
 
-        for (auto i=0; i<context.getFeaturesLen(); ++i) {
-            weights_sorted[i] = std::make_tuple(weights[i], i);
+    return false;
+}
+
+void depthWorker(Context& context,
+                 feature_size_t depth,
+                 feature_size_t current) {
+
+    auto cost = context.getFeaturesLen(0) - context.getFeaturesLen(depth);
+    if (cost >= context.getResultSet().getCostBarrier()) {
+        return;
+    }
+
+    propagate(context, depth, &current, 1);
+    depth += 1;
+
+    if (checkAndAppend(context, depth)) {
+        return;
+    }
+
+    bool useAll;
+    feature_size_t priorities[context.getFeaturesLen(depth)];
+    feature_size_t prioritiesLen;
+
+    for (;;) {
+        calcPriorities(context, depth, useAll, priorities, prioritiesLen);
+        if (useAll) {
+            propagate(context, depth, priorities, prioritiesLen);
+            depth += 1;
+        } else {
+            break;
         }
+    }
 
-        std::sort(&weights_sorted[0], &weights_sorted[context.getFeaturesLen()]);
-
-        for(auto i=0; i<context.getFeaturesLen(); ++i) {
-            if (!mask[i]) {
-                tasks.push_front(new CoverDepthTask(i, context.getFeaturesLen(), mask, index, rows, covering));
-            }
-        }
-
-        delete task;
+    auto stepFeatureLen = context.getFeaturesLen(depth);
+    for (auto i=0; i<stepFeatureLen; ++i) {
+        depthWorker(context, depth, priorities[i]);
     }
 }

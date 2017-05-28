@@ -76,8 +76,8 @@ void findCovering(feature_t* uim,
                   set_size_t uimSetLen,
                   feature_size_t featuresLen,
                   ResultSet& resultSet,
-                  int limit,
-                  int cover) {
+                  set_size_t limit,
+                  feature_size_t needCover) {
     CoverGenerator generator(featuresLen);
 
     Context context(uim,
@@ -85,7 +85,7 @@ void findCovering(feature_t* uim,
                     featuresLen,
                     resultSet,
                     limit,
-                    cover,
+                    needCover,
                     generator,
                     parser_int_get_value(work_block_arg));
 

@@ -10,8 +10,7 @@
 #include "input_matrix.hpp"
 #include "irredundant_matrix.hpp"
 
-std::ofstream* debugOutput;
-std::mutex* debugLock;
+INIT_DEBUG_OUTPUT();
 
 void printBuildFlags(std::ostream& stream);
 
@@ -39,8 +38,6 @@ int main(int argc, char** argv)
     }
 
 #ifdef DEBUG_MODE
-    debugOutput = new std::ofstream("debug_output.txt");
-    debugLock = new std::mutex();
     printBuildFlags(getDebugStream());
 #endif
 
@@ -87,10 +84,6 @@ int main(int argc, char** argv)
     TimeCollector::ThreadFinalize();
     TimeCollector::PrintInfo(timeCollectorOutput);
 
-    debugOutput->close();
-    delete debugOutput;
-    delete debugLock;
-
     parser_free(&parser);
     return 0;
 }
@@ -121,10 +114,3 @@ void printBuildFlags(std::ostream& debugOutput) {
 #endif
 }
 
-std::ostream& getDebugStream() {
-    return *debugOutput;
-}
-
-std::mutex& getDebugStreamLock() {
-    return *debugLock;
-}
