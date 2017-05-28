@@ -15,6 +15,7 @@ class Context final {
 
 public:
     Context(test_feature_t* uimSet,
+            feature_size_t* colors,
             set_size_t uimSetLen,
             feature_size_t featuresLen,
             ResultSet* resultSet,
@@ -23,6 +24,7 @@ public:
 #endif // MULTITHREAD
             set_size_t limit,
             feature_size_t needCover) :
+        _colors(colors),
         _resultSet(resultSet),
 #ifdef MULTITHREAD
         _resultsLock(resultsLock),
@@ -79,6 +81,7 @@ public:
 
     Context(Context&& another) :
         _uimSets(another._uimSets),
+        _colors(another._colors),
         _uimSetLens(another._uimSetLens),
         _featuresLens(another._featuresLens),
         _currentColumns(another._currentColumns),
@@ -102,6 +105,7 @@ public:
 
     Context clone(feature_size_t depth) {
         auto temp = Context(_uimSets[0],
+                            _colors,
                             _uimSetLens[0],
                             _featuresLens[0],
                             _resultSet,
@@ -132,6 +136,13 @@ public:
     inline feature_size_t* getCurrentColumns(feature_size_t depth) { return _currentColumns[depth]; }
     inline feature_size_t* getCurrentCover(feature_size_t depth) { return _currentCovers[depth]; }
 
+    inline feature_size_t getColor(feature_size_t depth, feature_size_t id) {
+        return _colors[_currentColumns[depth][id]];
+    }
+    inline void setColor(feature_size_t depth, feature_size_t id, feature_size_t value) {
+        _colors[_currentColumns[depth][id]] = value;
+    }
+
     inline ResultSet& getResultSet() const { return *_resultSet; }
     inline set_size_t getLimit() const { return _limit; }
     inline feature_size_t getNeedCover() const { return _needCover; }
@@ -142,6 +153,7 @@ public:
 
 private:
     test_feature_t** _uimSets;
+    feature_size_t* _colors;
     set_size_t* _uimSetLens;
     feature_size_t* _featuresLens;
     feature_size_t** _currentColumns;
@@ -191,9 +203,13 @@ void findCovering(feature_t* uim,
         }
     }
 
+    feature_size_t colors[featuresLen];
+    std::fill(&colors[0], &colors[featuresLen], featuresLen+1);
+
     IF_MULTITHREAD(std::mutex resultsLock);
 
     Context context(nuim,
+                    colors,
                     uimSetLen,
                     featuresLen,
                     &resultSet,
@@ -322,10 +338,13 @@ void calcPriorities(Context& context,
         std::sort(&weights_sorted[0], &weights_sorted[featuresLen]);
         std::reverse(&weights_sorted[0], &weights_sorted[featuresLen]);
 
+        outPrioritiesLen = 0;
         for (auto j=0; j<featuresLen; ++j) {
-            outPriorities[j] = std::get<1>(weights_sorted[j]);
+            if (std::get<0>(weights_sorted[j]) == 0) {
+                break;
+            }
+            outPriorities[outPrioritiesLen++] = std::get<1>(weights_sorted[j]);
         }
-        outPrioritiesLen = featuresLen;
     }
 
     DEBUG_BLOCK
@@ -342,7 +361,9 @@ void propagate(Context& context,
                feature_size_t depth,
                feature_size_t* columns,
                feature_size_t columnsLen) {
+
     auto needCover = context.getNeedCover();
+    auto fullFeatureLen = context.getFeaturesLen(0);
 
     auto uim = context.getUimSet(depth);
     auto& uimSetLen = context.getUimSetLen(depth);
@@ -358,11 +379,11 @@ void propagate(Context& context,
 
     DEBUG_BLOCK
         (
-         getDebugStream() << "propagagate ";
+         getDebugStream() << "propagagate";
          for (auto j=0; j<columnsLen; ++j) {
-             getDebugStream() << currentColumns[columns[j]] << ' ' << std::endl;
+             getDebugStream() << ' ' << currentColumns[columns[j]];
          }
-         getDebugStream() << std::endl;
+         getDebugStream() << ", depth: " << depth << std::endl;
 
          for (auto j=0; j<featuresLen; ++j) {
              getDebugStream() << std::setw(3) << currentColumns[j];
@@ -374,6 +395,10 @@ void propagate(Context& context,
                  getDebugStream() << std::setw(3) << (uim[i* featuresLen + j] ? 1 : 0);
              }
              getDebugStream() << "  " << currentCover[i] << std::endl;
+         }
+
+         for (auto j=0; j<featuresLen; ++j) {
+             getDebugStream() << std::setw(3) << context.getColor(depth, j);
          }
          getDebugStream() << std::endl;
          );
@@ -417,6 +442,10 @@ void propagate(Context& context,
         }
     }
 
+    for (auto j = 0; j < columnsLen; ++j) {
+        context.setColor(depth, columns[j], depth+1);
+    }
+
     DEBUG_BLOCK
         (
          getDebugStream() << "propagate result" << std::endl;
@@ -431,6 +460,10 @@ void propagate(Context& context,
                  getDebugStream() << std::setw(3) << (newUim[i* newFeaturesLen + j] ? 1 : 0);
              }
              getDebugStream() << "  " << newCurrentCover[i] << std::endl;
+         }
+
+         for (auto j=0; j<newFeaturesLen; ++j) {
+             getDebugStream() << std::setw(3) << context.getColor(depth+1, j);
          }
          getDebugStream() << std::endl;
          );
@@ -489,8 +522,16 @@ void depthWorker(Context& context,
         }
     }
 
-    auto stepFeatureLen = context.getFeaturesLen(depth);
-    for (auto i=0; i<stepFeatureLen; ++i) {
-        depthWorker(context, depth, priorities[i]);
+    for (auto i=0; i<prioritiesLen; ++i) {
+        auto handle = depth <= context.getColor(depth, priorities[i]);
+
+        DEBUG_INFO("column " << context.getCurrentColumns(depth)[priorities[i]]
+                   << ", handle: " << handle
+                   << ", depth: " << depth
+                   << ", prevColor: " << context.getColor(depth, priorities[i]));
+
+        if (handle) {
+            depthWorker(context, depth, priorities[i]);
+        }
     }
 }

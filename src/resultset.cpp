@@ -1,9 +1,6 @@
 #include "resultset.hpp"
 
-#include <limits>
 #include <numeric>
-
-const feature_size_t MAX_COST = std::numeric_limits<feature_size_t>::max();
 
 ResultSet::ResultSet(set_size_t limit, feature_size_t featuresLen) :
     _limit(limit),
@@ -11,7 +8,7 @@ ResultSet::ResultSet(set_size_t limit, feature_size_t featuresLen) :
     _size(0),
     _results(new test_feature_t[limit * featuresLen]),
     _resultsCost(new feature_size_t[limit]),
-    _costBarrier(MAX_COST)
+    _costBarrier(featuresLen + 1)
 {
 }
 

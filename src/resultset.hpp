@@ -5,7 +5,6 @@
 class ResultSet final {
 
  public:
-
     ResultSet(set_size_t limit, feature_size_t featureLen);
     ~ResultSet();
 
