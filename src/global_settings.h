@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <iomanip>
+#include <limits>
 #ifdef MULTITHREAD
 #include <mutex>
 #endif
@@ -11,6 +12,8 @@ typedef uint32_t feature_t;
 typedef  uint8_t test_feature_t;
 typedef uint32_t feature_size_t;
 typedef uint32_t set_size_t;
+typedef uint64_t calc_hash_t;
+const int calc_hash_bits = std::numeric_limits<calc_hash_t>::digits;
 
 #if MULTITHREAD
 #define IF_MULTITHREAD(command) command

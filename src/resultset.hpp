@@ -11,7 +11,7 @@ class ResultSet final {
     ResultSet(const ResultSet& result) = delete;
     ResultSet& operator=(const ResultSet&) = delete;
 
-    bool append(feature_size_t cost, test_feature_t* covering);
+    bool append(test_feature_t* covering);
 
     inline set_size_t getSize() const { return _size; }
     inline feature_size_t getCostBarrier() const { return _costBarrier; }
@@ -19,10 +19,13 @@ class ResultSet final {
     inline bool isFull() const { return _size == _limit; }
 
  private:
-    bool isInclude(test_feature_t* first, test_feature_t* second) const;
+    bool isInclude(test_feature_t* first, calc_hash_t firstHash,
+                   test_feature_t* second, calc_hash_t secondHash) const;
+    calc_hash_t calcHash(test_feature_t* first) const;
 
     test_feature_t* _results;
-    feature_size_t* _resultsCost;
+    feature_size_t* _resultsCosts;
+    calc_hash_t* _resultsHashes;
 
     set_size_t _size;
     feature_size_t _featuresLen;

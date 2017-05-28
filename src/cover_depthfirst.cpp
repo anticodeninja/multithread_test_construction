@@ -116,7 +116,7 @@ public:
                             _needCover);
 
         for (auto i = 1; i <= depth; ++i) {
-            for (auto j = 0; j < getUimSetLen(i) * getFeaturesLen(i); ++j) {
+            for (auto j = 0; j < _uimSetLens[i] * _featuresLens[i]; ++j) {
                 temp._uimSets[i][j] = _uimSets[i][j];
             }
             temp._uimSetLens[i] = _uimSetLens[i];
@@ -335,8 +335,7 @@ void calcPriorities(Context& context,
         for (auto j=0; j<featuresLen; ++j) {
             weights_sorted[j] = std::make_tuple(weights[j], j);
         }
-        std::sort(&weights_sorted[0], &weights_sorted[featuresLen]);
-        std::reverse(&weights_sorted[0], &weights_sorted[featuresLen]);
+        std::make_heap(&weights_sorted[0], &weights_sorted[featuresLen]);
 
         outPrioritiesLen = 0;
         for (auto j=0; j<featuresLen; ++j) {
@@ -474,17 +473,17 @@ bool checkAndAppend(Context& context,
 
     if (context.getUimSetLen(depth) == 0) {
         auto fullFeatureLen = context.getFeaturesLen(0);
-        auto featureLen = context.getFeaturesLen(depth);
+        auto featuresLen = context.getFeaturesLen(depth);
         auto currentColumns = context.getCurrentColumns(depth);
 
         test_feature_t covering[fullFeatureLen];
         std::fill(&covering[0], &covering[fullFeatureLen], 1);
-        for (auto j = 0; j < featureLen; ++j) {
+        for (auto j = 0; j < featuresLen; ++j) {
             covering[currentColumns[j]] = 0;
         }
 
         IF_MULTITHREAD(context.getResultsLock().lock());
-        context.getResultSet().append(fullFeatureLen - featureLen, covering);
+        context.getResultSet().append(covering);
         IF_MULTITHREAD(context.getResultsLock().unlock());
         return true;
     }
