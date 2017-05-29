@@ -12,8 +12,7 @@ DEFAULT_CONFIGURATIONS = [
    'uim_mt-mw', 'uim_mt-mw_dm_ll',
    'cover_st_df', 'cover_mt_df',
    'cover_st_bf', 'cover_mt_bf',
-   'cover_cudabf',
-   'cover_legtup'
+   'cover_cudabf'
 ]
 
 top = '.'
@@ -46,7 +45,7 @@ def options(ctx):
                   action='append',
                   help='Use specific configurations for build:\n'+
                        'uim_(st|mt-d2|mt-d2o|mt-mw)_(?dm)_(?vm)_(?ll)\n'+
-                       'cover_(df|bf)_(?mt)_(?cuda)')
+                       'cover_(df|bf|cuda|legtup)_(?mt)')
 
    ctx.add_option('-i', '--input-file',
                   dest="input_file",

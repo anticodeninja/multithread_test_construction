@@ -102,8 +102,8 @@ calc_hash_t ResultSet::calcHash(test_feature_t* first) const {
 bool ResultSet::isInclude(test_feature_t* first, calc_hash_t firstHash,
                           test_feature_t* second, calc_hash_t secondHash) const {
 
-    if ((firstHash & secondHash) == firstHash) {
-        return true;
+    if ((firstHash & secondHash) != firstHash) {
+        return false;
     }
 
     for (feature_size_t i = 0; i < _featuresLen; ++i) {

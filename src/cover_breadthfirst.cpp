@@ -162,10 +162,8 @@ void breadthWorker(Context& context) {
             }
 
             if (coverAll) {
-                Result result = Result(&_tasks[i * context.getFeaturesLen()], context.getFeaturesLen());
-
                 IF_MULTITHREAD(context.getResultsLock().lock());
-                context.getResultSet().append(std::move(result));
+                context.getResultSet().append(&_tasks[i * context.getFeaturesLen()]);
                 IF_MULTITHREAD(context.getResultsLock().unlock());
             }
         }
