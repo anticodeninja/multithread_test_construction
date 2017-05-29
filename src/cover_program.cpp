@@ -1,9 +1,12 @@
 #include <argparse.h>
 #include <fstream>
 
+#include "global_settings.h"
 #include "timecollector.hpp"
 #include "datafile.hpp"
 #include "resultset.hpp"
+
+INIT_DEBUG_OUTPUT();
 
 void initArgParser(parser_t* parser);
 
@@ -11,8 +14,8 @@ void findCovering(feature_t* uim,
                   set_size_t uimSetLen,
                   feature_size_t featuresLen,
                   ResultSet& resultSet,
-                  int limit,
-                  int covering);
+                  set_size_t limit,
+                  feature_size_t covering);
 
 int main(int argc, char** argv)
 {
@@ -69,7 +72,7 @@ int main(int argc, char** argv)
     auto uim = dataFile.getUimSet();
     STOP_COLLECT_TIME(readingInput);
 
-    ResultSet resultSet(parser_int_get_value(result_limit_arg));
+    ResultSet resultSet(parser_int_get_value(result_limit_arg), featuresLen);
 
     findCovering(uim,
                  uimSetLen,
@@ -85,7 +88,7 @@ int main(int argc, char** argv)
     auto tests = new feature_t[resultSet.getSize() * featuresLen];
     for(auto i=0; i<resultSet.getSize(); ++i) {
         for(auto j=0; j<featuresLen; ++j) {
-            tests[i * featuresLen + j] = resultSet.get(i).get(j);
+            tests[i * featuresLen + j] = resultSet.get(i)[j];
         }
     }
     dataFile.setTestSetBlock(tests,

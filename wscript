@@ -12,8 +12,7 @@ DEFAULT_CONFIGURATIONS = [
    'uim_mt-mw', 'uim_mt-mw_dm_ll',
    'cover_st_df', 'cover_mt_df',
    'cover_st_bf', 'cover_mt_bf',
-   'cover_cudabf',
-   'cover_legtup'
+   'cover_cudabf'
 ]
 
 top = '.'
@@ -29,16 +28,24 @@ def options(ctx):
    ctx.add_option('-d', '--debug',
                   action='store_true',
                   default=False,
+                  help='Enable debugging')
+   ctx.add_option('--debug-output',
+                  action='store_true',
+                  default=False,
                   help='Use additional messages to finding errors')
    ctx.add_option('-p', '--profiling',
                   action='count',
                   default=False,
                   help='Use time-collector for profiling perfomance')
+   ctx.add_option('--gnu-profiling',
+                  default=False,
+                  action='store_true',
+                  help='Use gperf for profiling perfomance')
    ctx.add_option('-c', '--configuration',
                   action='append',
                   help='Use specific configurations for build:\n'+
                        'uim_(st|mt-d2|mt-d2o|mt-mw)_(?dm)_(?vm)_(?ll)\n'+
-                       'cover_(df|bf)_(?mt)_(?cuda)')
+                       'cover_(df|bf|cuda|legtup)_(?mt)')
 
    ctx.add_option('-i', '--input-file',
                   dest="input_file",
@@ -62,10 +69,16 @@ def configure(ctx):
    ctx.env.append_value('CXXFLAGS', '-std=c++11')
 
    if ctx.options.debug:
-      ctx.env.append_value('DEFINES', 'DEBUG_MODE')
       ctx.env.append_value('CXXFLAGS', '-g')
    else:
       ctx.env.append_value('CXXFLAGS', '-O2')
+
+   if ctx.options.debug_output:
+      ctx.env.append_value('DEFINES', 'DEBUG_MODE')
+
+   if ctx.options.gnu_profiling:
+      ctx.env.append_value('CXXFLAGS', '-pg')
+      ctx.env.append_value('LINKFLAGS', '-pg')
 
    ctx.env.append_value('INCLUDES', ["argparse-port"])
 
