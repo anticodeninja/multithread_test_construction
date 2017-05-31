@@ -238,6 +238,7 @@ void DataFile::writeLearningSetBlock(std::ostream& outputStream) {
             } else {
                 outputStream << "-";
             }
+            outputStream << " ";
         }
         outputStream << std::endl;
     }
