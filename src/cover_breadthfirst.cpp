@@ -62,6 +62,8 @@ private:
 
 parser_int_arg_t* work_block_arg;
 
+parser_int_arg_t* thread_count_arg;
+
 void breadthWorker(Context& context);
 
 void initArgParser(parser_t* parser)
@@ -70,6 +72,11 @@ void initArgParser(parser_t* parser)
     parser_int_set_alt(work_block_arg, "-b");
     parser_int_set_help(work_block_arg, "amount of rows in working block");
     parser_int_set_default(work_block_arg, DEFAULT_WORK_BLOCK);
+
+    parser_int_add_arg(parser, &thread_count_arg, "--thread-count");
+    parser_int_set_alt(thread_count_arg, "-t");
+    parser_int_set_help(thread_count_arg, "use forced number of threads");
+    parser_int_set_default(thread_count_arg, 0);
 }
 
 void findCovering(feature_t* uim,
@@ -90,9 +97,12 @@ void findCovering(feature_t* uim,
                     parser_int_get_value(work_block_arg));
 
 #ifdef MULTITHREAD
-    auto maxThreads = std::thread::hardware_concurrency();;
-    std::vector<std::thread> threads(maxThreads);
+    auto maxThreads = parser_int_get_value(thread_count_arg);
+    if (maxThreads == 0) {
+        maxThreads = std::thread::hardware_concurrency();
+    }
 
+    std::vector<std::thread> threads(maxThreads);
     for(auto threadId = 0; threadId < maxThreads; ++threadId) {
         START_COLLECT_TIME(threading, Counters::Threading);
         threads[threadId] = std::thread([threadId, &context]()
@@ -169,4 +179,3 @@ void breadthWorker(Context& context) {
         }
     }
 }
-

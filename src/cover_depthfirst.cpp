@@ -1,9 +1,10 @@
 #include <algorithm>
 #include <argparse.h>
-#include <deque>
 #include <stdexcept>
 
 #ifdef MULTITHREAD
+#include <queue>
+#include <mutex>
 #include <thread>
 #endif
 
@@ -167,6 +168,8 @@ private:
 #endif
 };
 
+parser_int_arg_t* thread_count_arg;
+
 void depthWorker(Context& context,
                  feature_size_t depth,
                  feature_size_t current);
@@ -187,6 +190,10 @@ bool checkAndAppend(Context& context,
 
 void initArgParser(parser_t* parser)
 {
+    parser_int_add_arg(parser, &thread_count_arg, "--thread-count");
+    parser_int_set_alt(thread_count_arg, "-t");
+    parser_int_set_help(thread_count_arg, "use forced number of threads");
+    parser_int_set_default(thread_count_arg, 0);
 }
 
 void findCovering(feature_t* uim,
@@ -238,21 +245,45 @@ void findCovering(feature_t* uim,
         auto stepFeatureLen = context.getFeaturesLen(depth);
 
 #ifdef MULTITHREAD
-        std::vector<std::thread> threads(featuresLen);
+        std::queue<feature_size_t> tasks;
+        for (auto i = 0; i<stepFeatureLen; ++i) {
+            tasks.push(i);
+        }
 
-        for (auto threadId = 0; threadId < stepFeatureLen; ++threadId) {
+        auto maxThreads = parser_int_get_value(thread_count_arg);
+        if (maxThreads == 0) {
+            maxThreads = std::thread::hardware_concurrency();
+        }
+        if (maxThreads > stepFeatureLen) {
+            maxThreads = stepFeatureLen;
+        }
+
+        std::mutex mutex;
+        std::vector<std::thread> threads(maxThreads);
+        for (auto threadId = 0; threadId < maxThreads; ++threadId) {
             START_COLLECT_TIME(threading, Counters::Threading);
-            threads[threadId] = std::thread([threadId, &context, depth, &priorities]()
+            threads[threadId] = std::thread([threadId, &context, depth, &priorities, &tasks, &mutex]()
                                             {
                                                 TimeCollector::ThreadInitialize();
                                                 auto thContext = context.clone(depth);
-                                                depthWorker(thContext, depth, priorities[threadId]);
+                                                for(;;) {
+                                                    feature_size_t id = 0;
+                                                    {
+                                                        std::unique_lock<std::mutex> mlock(mutex);
+                                                        if (tasks.empty()) {
+                                                            break;
+                                                        }
+                                                        id = tasks.front();
+                                                        tasks.pop();
+                                                    }
+                                                    depthWorker(thContext, depth, priorities[id]);
+                                                }
                                                 TimeCollector::ThreadFinalize();
                                             });
             STOP_COLLECT_TIME(threading);
         }
 
-        for (auto threadId = 0; threadId < stepFeatureLen; ++threadId) {
+        for (auto threadId = 0; threadId < maxThreads; ++threadId) {
             threads[threadId].join();
         }
 #else
