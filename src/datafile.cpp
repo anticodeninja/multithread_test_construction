@@ -5,7 +5,14 @@
 #include <stdexcept>
 
 feature_t parseNext(std::istream& stream) {
-    throw std::runtime_error("ololo");
+    std::string temp;
+    stream >> temp;
+
+    if (temp == "-") {
+        return DataFile::DASH;
+    }
+
+    return std::stoul(temp);
 }
 
 TestSet::TestSet():

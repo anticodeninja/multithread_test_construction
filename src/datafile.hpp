@@ -31,8 +31,8 @@ private:
 class DataFile {
 
 public:
-    const int NOT_INITIALIZED = std::numeric_limits<set_size_t>::max();
-    const int DASH = std::numeric_limits<feature_t>::max();
+    const static int NOT_INITIALIZED = std::numeric_limits<set_size_t>::max();
+    const static int DASH = std::numeric_limits<feature_t>::max();
 
 public:
     DataFile();
