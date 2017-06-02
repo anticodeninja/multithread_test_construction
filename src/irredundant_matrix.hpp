@@ -10,6 +10,7 @@
 #endif
 
 #include "row.hpp"
+#include "datafile.hpp"
 
 #ifdef USE_LOCAL_LOCK
 #include <atomic>
@@ -36,7 +37,7 @@ public:
     void addRowConcurrent(Row&& row, int* r);
     void addMatrixConcurrent(IrredundantMatrix&& matrix);
     void clear();
-    void write(std::ostream& stream);
+    void fill(DataFile& dataFile);
 
     IrredundantMatrix(IrredundantMatrix& matrix) = delete;
     IrredundantMatrix& operator=(IrredundantMatrix& matrix) = delete;

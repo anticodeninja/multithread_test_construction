@@ -25,46 +25,27 @@
 #include "manyworkers_plan.hpp"
 #endif
 
-InputMatrix::InputMatrix() { }
+InputMatrix::InputMatrix(const DataFile& datafile) {
+    _rowsCount = datafile.getLearningSetLen();
+    _qColsCount = datafile.getFeaturesLen();
+    _rColsCount = datafile.getPfeaturesLen();
 
-InputMatrix::~InputMatrix() {
-    delete[] _rMatrix;
-    delete[] _r2Matrix;
-    delete[] _qMatrix;
-    delete[] _qMaximum;
-    delete[] _qMinimum;
-}
-
-void InputMatrix::read(std::istream& input) {
-    input >> _rowsCount;
-
-    input >> _qColsCount;
     _qMatrix = new int[_rowsCount * _qColsCount];
     _qMinimum = new int[_qColsCount];
     _qMaximum = new int[_qColsCount];
-    for(auto j=0; j<_qColsCount; ++j) {
-        _qMinimum[j] = DASH;
-        _qMaximum[j] = DASH;
-    }
+    _rMatrix = new int[_rowsCount * _rColsCount];
+
     for(auto i=0; i<_rowsCount; ++i) {
         for(auto j=0; j<_qColsCount; ++j) {
-            auto value = parseValue(input);
-            setFeature(i, j, value);
-            if (value != DASH) {
-                if (_qMinimum[j] == DASH || value < _qMinimum[j])
-                    _qMinimum[j] = value;
-                if (_qMaximum[j] == DASH || _qMaximum[j] < value)
-                    _qMaximum[j] = value;
-            }
+            setFeature(i, j, datafile.getLearningSetFeatures()[i * _qColsCount + j]);
+        }
+        for(auto j=0; j<_rColsCount; ++j) {
+            setImage(i, j, datafile.getLearningSetPfeatures()[i * _rColsCount + j]);
         }
     }
-
-    input >> _rColsCount;
-    _rMatrix = new int[_rowsCount * _rColsCount];
-    for(auto i=0; i<_rowsCount; ++i) {
-        for(auto j=0; j<_rColsCount; ++j) {
-            setImage(i, j, parseValue(input));
-        }
+    for(auto j=0; j<_qColsCount; ++j) {
+        _qMinimum[j] = datafile.getRangesMin()[j];
+        _qMaximum[j] = datafile.getRangesMax()[j];
     }
 
     _r2Matrix = new int[_rowsCount];
@@ -74,6 +55,14 @@ void InputMatrix::read(std::istream& input) {
     sortMatrix();
     calcR2Indexes();
     STOP_COLLECT_TIME(preparingInput);
+}
+
+InputMatrix::~InputMatrix() {
+    delete[] _rMatrix;
+    delete[] _r2Matrix;
+    delete[] _qMatrix;
+    delete[] _qMaximum;
+    delete[] _qMinimum;
 }
 
 void InputMatrix::printFeatureMatrix(std::ostream& stream) {
@@ -134,15 +123,6 @@ void InputMatrix::printDebugInfo(std::ostream& stream) {
     }
 
     STOP_COLLECT_TIME(writingOutput);
-}
-
-int InputMatrix::parseValue(std::istream &stream)
-{
-    std::string buffer;
-    stream >> buffer;
-    if(buffer == "-")
-        return DASH;
-    return stoi(buffer);
 }
 
 void InputMatrix::calcR2Matrix()
@@ -449,26 +429,26 @@ void InputMatrix::calcRVector(int* r, int row1, int row2) {
 
     for(auto k=0; k<_qColsCount; ++k) {
         r[k] = 0;
-        if(getFeature(row1, k) == DASH) {
+        if(getFeature(row1, k) == DataFile::DASH) {
             multiplier1 *= getFeatureValuesCount(k);
         }
-        if(getFeature(row2, k) == DASH) {
+        if(getFeature(row2, k) == DataFile::DASH) {
             multiplier2 *= getFeatureValuesCount(k);
         }
     }
 
     auto calcLimits = [this](int row, int col) {
-        return getFeature(row, col) == DASH
+        return getFeature(row, col) == DataFile::DASH
            ? std::tuple<int, int>(_qMinimum[col], _qMaximum[col])
            : std::tuple<int, int>(getFeature(row, col), getFeature(row, col));
     };
 
     for (auto k=0; k<_qColsCount; ++k) {
         auto multiplier = multiplier1 * multiplier2;
-        if(getFeature(row1, k) == DASH) {
+        if(getFeature(row1, k) == DataFile::DASH) {
             multiplier /= getFeatureValuesCount(k);
         }
-        if(getFeature(row2, k) == DASH) {
+        if(getFeature(row2, k) == DataFile::DASH) {
             multiplier /= getFeatureValuesCount(k);
         }
 

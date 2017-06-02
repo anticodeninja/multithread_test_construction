@@ -146,34 +146,27 @@ void IrredundantMatrix::clear()
     }
 }
 
-void IrredundantMatrix::write(std::ostream &stream)
+void IrredundantMatrix::fill(DataFile& datafile)
 {
-    START_COLLECT_TIME(writingOutput, Counters::WritingOutput);
-
     auto height = 0;
     for(auto current = _head.next; current != nullptr; current = current->next) {
         height += 1;
     }
 
-    stream << height << " " << _width << std::endl;
-
-    for(auto current = _head.next; current != nullptr; current = current->next) {
-        for(size_t j=0; j < _width; ++j, stream << " ") {
-            if(current->data.getValue(j) == std::numeric_limits<int>::min())
-                stream << '-';
-            else
-                stream << current->data.getValue(j);
+    auto uim = new feature_t[height * _width];
+    for(auto i = 0; i < height; ++i) {
+        for(auto j = 0; j < _width; ++j) {
+            uim[i * _width + j] = current->data.getValue(j);
         }
-        stream << std::endl;
     }
-    stream << std::endl;
 
-    for(size_t i=0; i < _width; ++i, stream << " ") {
-        stream << _r[i];
+    auto uimWeights = new feature_t[_width];
+    for(size_t j = 0; j < _width; ++j) {
+        uimWeights[j] = _r[j];
     }
-    stream << std::endl;
 
-    STOP_COLLECT_TIME(writingOutput);
+    datafile.setUimBlock(uim, height, _width);
+    datafile.setUimWeightsBlock(uimWeights, _width);
 }
 
 #else
@@ -231,28 +224,22 @@ void IrredundantMatrix::clear()
     _rows.clear();
 }
 
-void IrredundantMatrix::write(std::ostream &stream)
+void IrredundantMatrix::fill(DataFile& datafile)
 {
-    START_COLLECT_TIME(writingOutput, Counters::WritingOutput);
-
-    stream << _rows.size() << " " << _width << std::endl;
-    for(auto i=_rows.begin(); i != _rows.end(); ++i) {
-        for(size_t j=0; j < _width; ++j, stream << " ") {
-            if(i->getValue(j) == std::numeric_limits<int>::min())
-                stream << '-';
-            else
-                stream << i->getValue(j);
+    auto uim = new feature_t[_rows.size() * _width];
+    for(auto i = 0; i < _rows.size(); ++i) {
+        for(auto j = 0; j < _width; ++j) {
+            uim[i * _width + j] = _rows[i].getValue(j);
         }
-        stream << std::endl;
     }
-    stream << std::endl;
 
-    for(size_t i=0; i < _width; ++i, stream << " ") {
-        stream << _r[i];
+    auto uimWeights = new feature_t[_width];
+    for(size_t j = 0; j < _width; ++j) {
+        uimWeights[j] = _r[j];
     }
-    stream << std::endl;
 
-    STOP_COLLECT_TIME(writingOutput);
+    datafile.setUimBlock(uim, _rows.size(), _width);
+    datafile.setUimWeightsBlock(uimWeights, _width);
 }
 
 #ifdef IRREDUNTANT_VECTOR

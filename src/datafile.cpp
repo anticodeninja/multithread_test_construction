@@ -161,6 +161,43 @@ void DataFile::reset() {
 }
 
 void DataFile::calc() {
+    if (_learningSetLen > 0) {
+        if (_rangesMin == nullptr) {
+            _rangesMin = new feature_t[_featuresLen];
+            _rangesCalculated = true;
+
+            for (auto j=0; j<_featuresLen; ++j) {
+                _rangesMin[j] = std::numeric_limits<feature_t>::max();
+            }
+
+            for (auto i=0; i<_learningSetLen; ++i) {
+                for (auto j=0; j<_featuresLen; ++j) {
+                    if (_learningSetFeatures[i*_featuresLen + j] != DASH &&
+                        _learningSetFeatures[i*_featuresLen + j] < _rangesMin[j]) {
+                        _rangesMin[j] = _learningSetFeatures[i*_featuresLen + j];
+                    }
+                }
+            }
+        }
+
+        if (_rangesMax == nullptr) {
+            _rangesMax = new feature_t[_featuresLen];
+            _rangesCalculated = true;
+
+            for (auto j=0; j<_featuresLen; ++j) {
+                _rangesMax[j] = std::numeric_limits<feature_t>::min();
+            }
+
+            for (auto i=0; i<_learningSetLen; ++i) {
+                for (auto j=0; j<_featuresLen; ++j) {
+                    if (_learningSetFeatures[i*_featuresLen + j] != DASH &&
+                        _learningSetFeatures[i*_featuresLen + j] > _rangesMax[j]) {
+                        _rangesMax[j] = _learningSetFeatures[i*_featuresLen + j];
+                    }
+                }
+            }
+        }
+    }
 }
 
 void DataFile::setLearningSetBlock(uint32_t* learningSetFeatures,
@@ -233,7 +270,7 @@ void DataFile::writeLearningSetBlock(std::ostream& outputStream) {
         }
         outputStream << " ";
         for (auto j = 0; j < _pfeaturesLen; ++j) {
-            if (_learningSetFeatures[_pfeaturesLen * i + j] != DASH) {
+            if (_learningSetPfeatures[_pfeaturesLen * i + j] != DASH) {
                 outputStream << _learningSetPfeatures[_pfeaturesLen * i + j];
             } else {
                 outputStream << "-";

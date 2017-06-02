@@ -4,18 +4,16 @@
 #include <iostream>
 #include <vector>
 
+#include "datafile.hpp"
 #include "irredundant_matrix.hpp"
 
 class InputMatrix
 {
 
 public:
-    const int DASH = std::numeric_limits<int>::min();
-
-    InputMatrix();
+    InputMatrix(const DataFile& datafile);
     ~InputMatrix();
 
-    void read(std::istream& input);
     void printFeatureMatrix(std::ostream& stream);
     void printImageMatrix(std::ostream& stream);
     void printDebugInfo(std::ostream &stream);
@@ -58,7 +56,6 @@ public:
 
 private:
 
-    int parseValue(std::istream& stream);
     void calcR2Matrix();
     void sortMatrix();
     void calcR2Indexes();

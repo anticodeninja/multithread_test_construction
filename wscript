@@ -110,6 +110,8 @@ def build(ctx):
       libs = []
       lflags = []
 
+      files.append('datafile.cpp')
+
       if 'uim' in chunks:
          files.append('uim_program.cpp')
          files.append('input_matrix.cpp')
@@ -142,7 +144,6 @@ def build(ctx):
 
       elif 'cover' in chunks:
          files.append('cover_program.cpp')
-         files.append('datafile.cpp')
          files.append('resultset.cpp')
          files.append('timecollector.cpp')
 

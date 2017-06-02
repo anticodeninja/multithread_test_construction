@@ -6,6 +6,7 @@
 #include "../argparse-port/argparse.h"
 
 #include "global_settings.h"
+#include "datafile.hpp"
 #include "timecollector.hpp"
 #include "input_matrix.hpp"
 #include "irredundant_matrix.hpp"
@@ -45,14 +46,15 @@ int main(int argc, char** argv)
     TimeCollector::ThreadInitialize();
     TimeCollectorEntry executionTime(Counters::All);
 
-    InputMatrix inputMatrix;
     START_COLLECT_TIME(readingInput, Counters::ReadingInput);
-    if (strcmp("-", input_arg->value) != 0) {
-        std::ifstream input_stream(input_arg->value);
-        inputMatrix.read(input_stream);
+    DataFile dataFile;
+    if (strcmp("-", parser_string_get_value(input_arg)) != 0) {
+        std::ifstream input_stream(parser_string_get_value(input_arg));
+        dataFile.load(input_stream);
     } else {
-        inputMatrix.read(std::cin);
+        dataFile.load(std::cin);
     }
+    InputMatrix inputMatrix(dataFile);
     STOP_COLLECT_TIME(readingInput);
 
 #ifdef DEBUG_MODE
@@ -64,12 +66,20 @@ int main(int argc, char** argv)
     IrredundantMatrix irredundantMatrix(inputMatrix.getFeatureWidth());
     inputMatrix.calculate(irredundantMatrix);
 
+    if (parser_flag_is_filled(no_transfer)) {
+        dataFile.reset();
+    }
+
+    START_COLLECT_TIME(writingOutput, Counters::WritingOutput);
+    irredundantMatrix.fill(dataFile);
+
     if (strcmp("-", output_arg->value) != 0) {
         std::ofstream output_stream(output_arg->value);
-        irredundantMatrix.write(output_stream);
+        dataFile.save(output_stream);
     } else {
-        irredundantMatrix.write(std::cout);
+        dataFile.save(std::cout);
     }
+    STOP_COLLECT_TIME(writingOutput);
 
 #ifdef DEBUG_MODE
     getDebugStream() << "# Irreduntant Matrix" << std::endl;
