@@ -242,11 +242,9 @@ void findCovering(feature_t* uim,
     }
 
     if (!checkAndAppend(context, depth)) {
-        auto stepFeatureLen = context.getFeaturesLen(depth);
-
 #ifdef MULTITHREAD
         std::queue<feature_size_t> tasks;
-        for (auto i = 0; i<stepFeatureLen; ++i) {
+        for (auto i = 0; i<prioritiesLen; ++i) {
             tasks.push(i);
         }
 
@@ -254,8 +252,8 @@ void findCovering(feature_t* uim,
         if (maxThreads == 0) {
             maxThreads = std::thread::hardware_concurrency();
         }
-        if (maxThreads > stepFeatureLen) {
-            maxThreads = stepFeatureLen;
+        if (maxThreads > prioritiesLen) {
+            maxThreads = prioritiesLen;
         }
 
         std::mutex mutex;
@@ -287,7 +285,7 @@ void findCovering(feature_t* uim,
             threads[threadId].join();
         }
 #else
-        for (auto i=0; i<stepFeatureLen; ++i) {
+        for (auto i=0; i<prioritiesLen; ++i) {
             depthWorker(context, depth, priorities[i]);
         }
 #endif
