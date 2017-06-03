@@ -364,7 +364,8 @@ void calcPriorities(Context& context,
         for (auto j=0; j<featuresLen; ++j) {
             weights_sorted[j] = std::make_tuple(weights[j], j);
         }
-        std::make_heap(&weights_sorted[0], &weights_sorted[featuresLen]);
+        std::sort(&weights_sorted[0], &weights_sorted[featuresLen]);
+        std::reverse(&weights_sorted[0], &weights_sorted[featuresLen]);
 
         outPrioritiesLen = 0;
         for (auto j=0; j<featuresLen; ++j) {
