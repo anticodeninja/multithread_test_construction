@@ -5,7 +5,19 @@
 #include <vector>
 #include <tuple>
 
-void CoverCommon::calcPriorities(feature_t* uim,
+void CoverCommon::binarize(feature_t* uim,
+                           set_size_t uimSetLen,
+                           feature_size_t featuresLen,
+                           test_feature_t* newUim) {
+
+    for (auto i=0; i<uimSetLen; ++i) {
+        for (auto j=0; j<featuresLen; ++j) {
+            newUim[i*featuresLen+j] = !!uim[i*featuresLen+j];
+        }
+    }
+}
+
+void CoverCommon::calcPriorities(test_feature_t* uim,
                                  set_size_t uimSetLen,
                                  feature_size_t featuresLen,
                                  feature_size_t needCover,
@@ -81,12 +93,12 @@ void CoverCommon::calcPriorities(feature_t* uim,
          );
 }
 
-void CoverCommon::reduceUim(feature_t* uim,
+void CoverCommon::reduceUim(test_feature_t* uim,
                             set_size_t uimSetLen,
                             feature_size_t featuresLen,
                             feature_size_t* currentColumns,
                             feature_size_t* currentCover,
-                            feature_t* newUim,
+                            test_feature_t* newUim,
                             set_size_t& newUimSetLen,
                             feature_size_t& newFeaturesLen,
                             feature_size_t* newCurrentColumns,
@@ -141,11 +153,11 @@ void CoverCommon::reduceUim(feature_t* uim,
     debugPrintUim(newUim, newUimSetLen, newFeaturesLen, newCurrentColumns, newCurrentCover);
 }
 
-void CoverCommon::reorderUim(feature_t* uim,
+void CoverCommon::reorderUim(test_feature_t* uim,
                              set_size_t uimSetLen,
                              feature_size_t featuresLen,
                              feature_size_t* currentColumns,
-                             feature_t* newUim,
+                             test_feature_t* newUim,
                              set_size_t& newUimSetLen,
                              feature_size_t& newFeaturesLen,
                              feature_size_t* newCurrentColumns,
@@ -180,7 +192,7 @@ void CoverCommon::reorderUim(feature_t* uim,
 }
 
 #ifdef DEBUG_MODE
-void CoverCommon::debugPrintUim(feature_t* uim,
+void CoverCommon::debugPrintUim(test_feature_t* uim,
                                 set_size_t uimSetLen,
                                 feature_size_t featuresLen,
                                 feature_size_t* currentColumns,

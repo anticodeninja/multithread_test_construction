@@ -17,7 +17,7 @@ const set_size_t DEFAULT_WORK_BLOCK = 1024;
 class Context final {
 
 public:
-    Context(feature_t* uimSet,
+    Context(test_feature_t* uimSet,
             set_size_t uimSetLen,
             feature_size_t featuresLen,
             ResultSet& resultSet,
@@ -36,7 +36,7 @@ public:
         _generator(generator),
         _workBlock(workBlock) { }
 
-    inline feature_t* getUimSet() const { return _uimSet; }
+    inline test_feature_t* getUimSet() const { return _uimSet; }
     inline set_size_t getUimSetLen() const { return _uimSetLen; }
     inline feature_size_t getFeaturesLen() const { return _featuresLen; }
     inline ResultSet& getResultSet() const { return _resultSet; }
@@ -52,7 +52,7 @@ public:
 #endif
 
 private:
-    feature_t* _uimSet;
+    test_feature_t* _uimSet;
     set_size_t _uimSetLen;
     feature_size_t _featuresLen;
     ResultSet& _resultSet;
@@ -93,12 +93,13 @@ void findCovering(feature_t* uim,
                   set_size_t limit,
                   feature_size_t needCover) {
 
+    test_feature_t nuim[uimSetLen * featuresLen];
+    CoverCommon::binarize(uim, uimSetLen, featuresLen, nuim);
+
     feature_size_t currentCover[uimSetLen];
     std::fill(&currentCover[0], &currentCover[uimSetLen], 0);
 
 #ifdef PREPARE_DATA
-    auto origUim = uim;
-    auto origUimSetLen = uimSetLen;
     auto origFeaturesLen = featuresLen;
     auto& origResultSet = resultSet;
 
@@ -115,7 +116,7 @@ void findCovering(feature_t* uim,
     feature_size_t prioritiesLen;
 
     for (;;) {
-        CoverCommon::calcPriorities(uim, uimSetLen, featuresLen, needCover, currentCover, currentColumns,
+        CoverCommon::calcPriorities(nuim, uimSetLen, featuresLen, needCover, currentCover, currentColumns,
                                     useAll, priorities, prioritiesLen);
 
         if (useAll) {
@@ -123,13 +124,13 @@ void findCovering(feature_t* uim,
                 marked[currentColumns[priorities[j]]] = 1;
             }
 
-            CoverCommon::reduceUim(uim, uimSetLen, featuresLen, currentColumns, currentCover,
-                                   uim, uimSetLen, featuresLen, currentColumns, currentCover,
+            CoverCommon::reduceUim(nuim, uimSetLen, featuresLen, currentColumns, currentCover,
+                                   nuim, uimSetLen, featuresLen, currentColumns, currentCover,
                                    needCover, priorities, prioritiesLen);
         } else {
             std::reverse(&priorities[0], &priorities[prioritiesLen]);
-            CoverCommon::reorderUim(uim, uimSetLen, featuresLen, currentColumns,
-                                    uim, uimSetLen, featuresLen, currentColumns,
+            CoverCommon::reorderUim(nuim, uimSetLen, featuresLen, currentColumns,
+                                    nuim, uimSetLen, featuresLen, currentColumns,
                                     priorities, prioritiesLen);
             break;
         }
@@ -141,7 +142,7 @@ void findCovering(feature_t* uim,
 #endif
 
     CoverGenerator generator(featuresLen);
-    Context context(uim,
+    Context context(nuim,
                     uimSetLen,
                     featuresLen,
                     tempResultSet,
