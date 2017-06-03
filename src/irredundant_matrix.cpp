@@ -153,11 +153,13 @@ void IrredundantMatrix::fill(DataFile& datafile)
         height += 1;
     }
 
+    auto i = 0;
     auto uim = new feature_t[height * _width];
-    for(auto i = 0; i < height; ++i) {
+    for(auto current = _head.next; current != nullptr; current = current->next) {
         for(auto j = 0; j < _width; ++j) {
             uim[i * _width + j] = current->data.getValue(j);
         }
+        i += 1;
     }
 
     auto uimWeights = new feature_t[_width];
