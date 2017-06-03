@@ -22,6 +22,10 @@ const int calc_hash_bits = std::numeric_limits<calc_hash_t>::digits;
 #endif
 
 #ifdef DEBUG_MODE
+
+#define IF_DEBUG_OUTPUT(command) command;
+#define IFN_DEBUG_OUTPUT(command);
+
 std::ostream& getDebugStream();
 
 #ifdef MULTITHREAD
@@ -51,6 +55,8 @@ std::mutex& getDebugStreamLock();
 #endif
 
 #else
+#define IF_DEBUG_OUTPUT(command);
+#define IFN_DEBUG_OUTPUT(command) command;
 #define DEBUG_INFO(args);
 #define DEBUG_BLOCK(commands);
 #define INIT_DEBUG_OUTPUT();

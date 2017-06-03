@@ -143,6 +143,7 @@ def build(ctx):
             defines.append('USE_LOCAL_LOCK')
 
       elif 'cover' in chunks:
+         files.append('cover_common.cpp')
          files.append('cover_program.cpp')
          files.append('resultset.cpp')
          files.append('timecollector.cpp')
@@ -159,6 +160,9 @@ def build(ctx):
          elif 'legtup' in chunks:
             files.append('legacy/cover_tuptests.cpp')
             files.append('legacy/matrix.cpp')
+
+         if ('bf' in chunks or 'cudabf' in chunks) and 'pd' in chunks:
+            defines.append('PREPARE_DATA')
 
          if 'mt' in chunks:
             multithreaded = True

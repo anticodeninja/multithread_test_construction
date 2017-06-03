@@ -14,6 +14,7 @@ class ResultSet final {
     bool append(test_feature_t* covering);
 
     inline set_size_t getSize() const { return _size; }
+    inline set_size_t getLimit() const { return _limit; }
     inline feature_size_t getCostBarrier() const { return _costBarrier; }
     inline test_feature_t* get(set_size_t index) const { return &_results[index * _featuresLen]; }
     inline bool isFull() const { return _size == _limit; }

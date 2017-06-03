@@ -1,10 +1,13 @@
 #include <argparse.h>
 
+#include <algorithm>
+
 #ifdef MULTITHREAD
 #include <thread>
 #endif
 
 #include "global_settings.h"
+#include "cover_common.hpp"
 #include "cover_generator.hpp"
 #include "resultset.hpp"
 #include "timecollector.hpp"
@@ -20,6 +23,7 @@ public:
             ResultSet& resultSet,
             set_size_t limit,
             feature_size_t cover,
+            feature_size_t* currentCover,
             CoverGenerator& generator,
             set_size_t workBlock) :
         _uimSet(uimSet),
@@ -28,6 +32,7 @@ public:
         _resultSet(resultSet),
         _limit(limit),
         _cover(cover),
+        _currentCover(currentCover),
         _generator(generator),
         _workBlock(workBlock) { }
 
@@ -37,6 +42,7 @@ public:
     inline ResultSet& getResultSet() const { return _resultSet; }
     inline set_size_t getLimit() const { return _limit; }
     inline feature_size_t getCover() const { return _cover; }
+    inline feature_size_t* getCurrentCover() const { return _currentCover; }
     inline CoverGenerator& getGenerator() const { return _generator; }
     inline set_size_t getWorkBlock() const { return _workBlock; }
 
@@ -52,6 +58,7 @@ private:
     ResultSet& _resultSet;
     set_size_t _limit;
     feature_size_t _cover;
+    feature_size_t* _currentCover;
     CoverGenerator& _generator;
     set_size_t _workBlock;
 #ifdef MULTITHREAD
@@ -85,14 +92,62 @@ void findCovering(feature_t* uim,
                   ResultSet& resultSet,
                   set_size_t limit,
                   feature_size_t needCover) {
-    CoverGenerator generator(featuresLen);
 
+    feature_size_t currentCover[uimSetLen];
+    std::fill(&currentCover[0], &currentCover[uimSetLen], 0);
+
+#ifdef PREPARE_DATA
+    auto origUim = uim;
+    auto origUimSetLen = uimSetLen;
+    auto origFeaturesLen = featuresLen;
+    auto& origResultSet = resultSet;
+
+    test_feature_t marked[featuresLen];
+    std::fill(&marked[0], &marked[featuresLen], 0);
+
+    feature_size_t currentColumns[featuresLen];
+    for (auto j = 0; j < featuresLen; ++j) {
+        currentColumns[j] = j;
+    }
+
+    bool useAll;
+    feature_size_t priorities[featuresLen];
+    feature_size_t prioritiesLen;
+
+    for (;;) {
+        CoverCommon::calcPriorities(uim, uimSetLen, featuresLen, needCover, currentCover, currentColumns,
+                                    useAll, priorities, prioritiesLen);
+
+        if (useAll) {
+            for (auto j = 0; j < prioritiesLen; ++j) {
+                marked[currentColumns[priorities[j]]] = 1;
+            }
+
+            CoverCommon::reduceUim(uim, uimSetLen, featuresLen, currentColumns, currentCover,
+                                   uim, uimSetLen, featuresLen, currentColumns, currentCover,
+                                   needCover, priorities, prioritiesLen);
+        } else {
+            std::reverse(&priorities[0], &priorities[prioritiesLen]);
+            CoverCommon::reorderUim(uim, uimSetLen, featuresLen, currentColumns,
+                                    uim, uimSetLen, featuresLen, currentColumns,
+                                    priorities, prioritiesLen);
+            break;
+        }
+    }
+
+    ResultSet tempResultSet(resultSet.getLimit(), featuresLen);
+#else
+    ResultSet& tempResultSet = resultSet;
+#endif
+
+    CoverGenerator generator(featuresLen);
     Context context(uim,
                     uimSetLen,
                     featuresLen,
-                    resultSet,
+                    tempResultSet,
                     limit,
                     needCover,
+                    currentCover,
                     generator,
                     parser_int_get_value(work_block_arg));
 
@@ -119,6 +174,24 @@ void findCovering(feature_t* uim,
     }
 #else
     breadthWorker(context);
+#endif
+
+#ifdef PREPARE_DATA
+    test_feature_t tempTestRow[origFeaturesLen];
+    for(auto i=0; i<tempResultSet.getSize(); ++i) {
+        std::fill(&tempTestRow[0], &tempTestRow[origFeaturesLen], 0);
+        for (auto j = 0; j < origFeaturesLen; ++j) {
+            if (marked[j]) {
+                tempTestRow[j] = 1;
+            }
+        }
+        for (auto j = 0; j < featuresLen; ++j) {
+            if (tempResultSet.get(i)[j]) {
+                tempTestRow[currentColumns[j]] = 1;
+            }
+        }
+        resultSet.append(tempTestRow);
+    }
 #endif
 }
 
@@ -154,7 +227,7 @@ void breadthWorker(Context& context) {
             coverAll = true;
 
             for (uint_fast32_t r=0; r<context.getUimSetLen(); ++r) {
-                coverKoef = 0;
+                coverKoef = context.getCurrentCover()[r];;
 
                 for(uint_fast16_t j=0; j<context.getFeaturesLen(); ++j) {
                     if (_tasks[i * context.getFeaturesLen() + j] && context.getUimSet()[r * context.getFeaturesLen() + j]) {

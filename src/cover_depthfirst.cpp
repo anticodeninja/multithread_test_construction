@@ -9,6 +9,7 @@
 #endif
 
 #include "global_settings.h"
+#include "cover_common.hpp"
 #include "resultset.hpp"
 #include "timecollector.hpp"
 
